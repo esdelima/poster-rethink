@@ -1,104 +1,467 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-  <title>AR Business Card - Image Tracking (NFT) Demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Futuristik</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <!-- AR.js A-Frame build (mendukung NFT/image tracking) -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.4/aframe/build/aframe-ar-nft.js"></script>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+        }
 
-  <style>
-    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    .hint {
-      position: fixed; left: 10px; top: 10px;
-      background: rgba(0,0,0,0.6); color: white; padding: 8px 10px; border-radius: 8px;
-      font-size: 13px; z-index: 10;
-    }
-    .fallback {
-      position: fixed; left: 10px; bottom: 10px;
-      background: rgba(255,255,255,0.95); color:#111; padding:8px 10px; border-radius:8px; z-index: 10;
-      font-size:13px;
-    }
-    .btn {
-      display:inline-block; padding:6px 10px; border-radius:6px; background:#0366d6; color:#fff; text-decoration:none; font-weight:600;
-    }
-  </style>
+        #videoContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .scan-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 350px;
+            border: 2px solid #00ffff;
+            border-radius: 20px;
+            background: rgba(0, 255, 255, 0.1);
+            backdrop-filter: blur(2px);
+            transition: all 0.5s ease;
+            animation: pulse 2s infinite;
+        }
+
+        .scan-area.locked {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.8); }
+        }
+
+        .corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #00ffff;
+        }
+
+        .corner.top-left {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+            border-radius: 20px 0 0 0;
+        }
+
+        .corner.top-right {
+            top: -3px;
+            right: -3px;
+            border-left: none;
+            border-bottom: none;
+            border-radius: 0 20px 0 0;
+        }
+
+        .corner.bottom-left {
+            bottom: -3px;
+            left: -3px;
+            border-right: none;
+            border-top: none;
+            border-radius: 0 0 0 20px;
+        }
+
+        .corner.bottom-right {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+            border-radius: 0 0 20px 0;
+        }
+
+        .locked .corner {
+            border-color: #00ff00;
+        }
+
+        .glass-panel {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.6s ease;
+        }
+
+        .glass-panel.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .glass-left {
+            top: 20%;
+            left: 5%;
+            width: 200px;
+            height: 60%;
+        }
+
+        .glass-right {
+            top: 20%;
+            right: 5%;
+            width: 200px;
+            height: 60%;
+        }
+
+        .glass-top {
+            top: 5%;
+            left: 25%;
+            width: 50%;
+            height: 120px;
+        }
+
+        .glass-bottom {
+            bottom: 5%;
+            left: 25%;
+            width: 50%;
+            height: 120px;
+        }
+
+        .callout {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #00ffff, #0080ff);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+            animation: float 3s ease-in-out infinite;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.4s ease;
+            pointer-events: auto;
+        }
+
+        .callout.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .callout:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .callout-1 { top: 15%; left: 20%; animation-delay: 0s; }
+        .callout-2 { top: 25%; right: 15%; animation-delay: 0.5s; }
+        .callout-3 { bottom: 30%; left: 10%; animation-delay: 1s; }
+        .callout-4 { bottom: 20%; right: 20%; animation-delay: 1.5s; }
+        .callout-5 { top: 60%; left: 50%; transform: translateX(-50%); animation-delay: 2s; }
+
+        .popup-image {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 15px;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.8);
+            border: 2px solid #00ffff;
+            opacity: 0;
+            transition: all 0.5s ease;
+            z-index: 1000;
+            pointer-events: auto;
+        }
+
+        .popup-image.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #00ffff, #0080ff);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(0, 255, 255, 0.6);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 0, 0, 0.8);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .popup-image.show .close-btn {
+            display: flex;
+        }
+    </style>
 </head>
 <body>
-  <div class="hint">Arahkan kamera ke gambar kartu (marker). Jika belum ada file target, lihat instruksi di README di bawah.</div>
+    <div id="videoContainer">
+        <video id="video" autoplay muted playsinline></video>
+        
+        <div id="overlay">
+            <div class="status" id="status">Posisikan area scan pada objek</div>
+            
+            <div class="scan-area" id="scanArea">
+                <div class="corner top-left"></div>
+                <div class="corner top-right"></div>
+                <div class="corner bottom-left"></div>
+                <div class="corner bottom-right"></div>
+            </div>
 
-  <!-- fallback UI jika tidak ada marker -->
-  <div class="fallback" id="fallback">
-    Jika AR tidak mendeteksi target, <a class="btn" id="show-sim">Tampilkan demo tanpa marker</a>
-  </div>
+            <div class="glass-panel glass-left" id="glassLeft"></div>
+            <div class="glass-panel glass-right" id="glassRight"></div>
+            <div class="glass-panel glass-top" id="glassTop"></div>
+            <div class="glass-panel glass-bottom" id="glassBottom"></div>
 
-  <!-- A-Frame scene with AR.js (NFT) -->
-  <a-scene
-    embedded
-    vr-mode-ui="enabled: false"
-    renderer="antialias: true; alpha: true;"
-    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
-    
-    <!-- Kamera -->
-    <a-entity camera></a-entity>
+            <div class="callout callout-1" id="callout1">1</div>
+            <div class="callout callout-2" id="callout2">2</div>
+            <div class="callout callout-3" id="callout3">3</div>
+            <div class="callout callout-4" id="callout4">4</div>
+            <div class="callout callout-5" id="callout5">5</div>
 
-    <!-- NFT marker: ubah url ke folder yang berisi card.iset, card.fset, card.fset3 -->
-    <!-- Nama 'card' adalah contoh; jika kamu generate file dengan nama lain, ganti 'card' -->
-    <a-marker type="nft" url="assets/card/card">
-      <!-- Group konten yang muncul saat marker terdeteksi -->
-      <a-entity id="overlay" position="0 0 0">
-        <!-- Background plane (sedikit transparan) -->
-        <a-plane position="0 0 0" rotation="-90 0 0" width="1.6" height="0.9" material="color: #ffffff; opacity: 0.95"></a-plane>
+            <div class="controls">
+                <button class="btn" id="confirmBtn">Konfirmasi Area</button>
+                <button class="btn" id="resetBtn" disabled>Reset</button>
+            </div>
+        </div>
 
-        <!-- Menampilkan 5 gambar data yang kamu kirim (posisi & ukuran bisa disesuaikan) -->
-        <!-- Gambar 1 -->
-        <a-plane position="-0.7 0.02 0.01" rotation="-90 0 0" width="0.7" height="0.28" material="shader: flat; src: https://iili.io/FmPOlgR.png"></a-plane>
+        <img class="popup-image" id="popupImage" src="" alt="AR Content">
+        <button class="close-btn" id="closeBtn" onclick="closePopup()">×</button>
+    </div>
 
-        <!-- Gambar 2 -->
-        <a-plane position="0 0.02 0.01" rotation="-90 0 0" width="0.7" height="0.28" material="shader: flat; src: https://iili.io/FmPOc0v.png"></a-plane>
+    <script>
+        let isLocked = false;
+        let currentPopup = null;
+        
+        const images = [
+            'https://iili.io/FmPOlgR.png',
+            'https://iili.io/FmPOc0v.png',
+            'https://iili.io/FmPO7sa.png',
+            'https://iili.io/FmPO5Wg.png',
+            'https://iili.io/FmPO1Jp.png'
+        ];
 
-        <!-- Gambar 3 -->
-        <a-plane position="-0.7 -0.32 0.01" rotation="-90 0 0" width="0.7" height="0.28" material="shader: flat; src: https://iili.io/FmPO7sa.png"></a-plane>
+        // Inisialisasi kamera
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                document.getElementById('video').srcObject = stream;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                document.getElementById('status').textContent = 'Error: Tidak dapat mengakses kamera';
+            }
+        }
 
-        <!-- Gambar 4 -->
-        <a-plane position="0 -0.32 0.01" rotation="-90 0 0" width="0.7" height="0.28" material="shader: flat; src: https://iili.io/FmPO5Wg.png"></a-plane>
+        // Konfirmasi area
+        document.getElementById('confirmBtn').addEventListener('click', function() {
+            if (!isLocked) {
+                lockArea();
+            }
+        });
 
-        <!-- Gambar 5 (misal logo atau summary) -->
-        <a-plane position="0 0.42 0.01" rotation="-90 0 0" width="1.4" height="0.2" material="shader: flat; src: https://iili.io/FmPO1Jp.png"></a-plane>
+        // Reset
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            resetAR();
+        });
 
-        <!-- Tombol CTA (klik 3D dengan cursor atau fallback klik layar) -->
-        <a-plane id="cta-plane" position="0 0.9 0" rotation="-90 0 0" width="0.6" height="0.18" material="color:#0366d6; opacity:0.95" class="clickable">
-          <a-entity position="0 0 0.01" text="value: Lihat detail; color: #fff; align: center; width: 3; baseline: middle;"></a-entity>
-        </a-plane>
-      </a-entity>
-    </a-marker>
+        function lockArea() {
+            isLocked = true;
+            const scanArea = document.getElementById('scanArea');
+            const status = document.getElementById('status');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const resetBtn = document.getElementById('resetBtn');
 
-    <!-- lighting agar tampilan 3D lebih enak -->
-    <a-entity light="type: ambient; color: #BBB"></a-entity>
-    <a-entity light="type: directional; intensity: 0.6" position="0 1 0"></a-entity>
-  </a-scene>
+            // Update UI
+            scanArea.classList.add('locked');
+            status.textContent = 'Area terkunci - AR aktif!';
+            confirmBtn.disabled = true;
+            resetBtn.disabled = false;
 
-  <script>
-    // Klik CTA: buka link / modal. Gunakan raycaster untuk klik objek 3D (sederhana: global click fallback)
-    document.getElementById('cta-plane').addEventListener('click', function () {
-      window.open('https://example.com', '_blank');
-    });
+            // Tampilkan glass panels
+            setTimeout(() => {
+                document.getElementById('glassLeft').classList.add('show');
+            }, 200);
+            setTimeout(() => {
+                document.getElementById('glassRight').classList.add('show');
+            }, 400);
+            setTimeout(() => {
+                document.getElementById('glassTop').classList.add('show');
+            }, 600);
+            setTimeout(() => {
+                document.getElementById('glassBottom').classList.add('show');
+            }, 800);
 
-    // Fallback: tombol untuk menunjukkan demo tanpa marker (berguna saat belum buat NFT)
-    document.getElementById('show-sim').addEventListener('click', function () {
-      // Pindahkan overlay ke depan kamera supaya terlihat walau tanpa marker
-      var overlay = document.getElementById('overlay');
-      if (!overlay) return;
-      // set position relatif ke camera
-      overlay.setAttribute('position', '0 0 -1.2');
-      overlay.setAttribute('rotation', '0 0 0');
-      // sembunyikan pesan fallback agar tidak menghalangi
-      document.getElementById('fallback').style.display = 'none';
-      alert('Demo tanpa marker aktif — pindahkan layar untuk melihat overlay. Ingat: ini hanya fallback, untuk deteksi nyata silakan generate NFT target dan letakkan di assets/card/');
-    });
-  </script>
-</body>
+            // Tampilkan callouts
+            setTimeout(() => {
+                for (let i = 1; i <= 5; i++) {
+                    setTimeout(() => {
+                        document.getElementById(`callout${i}`).classList.add('show');
+                    }, i * 300);
+                }
+            }, 1000);
+        }
+
+        function resetAR() {
+            isLocked = false;
+            const scanArea = document.getElementById('scanArea');
+            const status = document.getElementById('status');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const resetBtn = document.getElementById('resetBtn');
+
+            // Reset UI
+            scanArea.classList.remove('locked');
+            status.textContent = 'Posisikan area scan pada objek';
+            confirmBtn.disabled = false;
+            resetBtn.disabled = true;
+
+            // Sembunyikan glass panels
+            document.querySelectorAll('.glass-panel').forEach(panel => {
+                panel.classList.remove('show');
+            });
+
+            // Sembunyikan callouts
+            document.querySelectorAll('.callout').forEach(callout => {
+                callout.classList.remove('show');
+            });
+
+            // Tutup popup jika ada
+            closePopup();
+        }
+
+        // Event listeners untuk callouts
+        for (let i = 1; i <= 5; i++) {
+            document.getElementById(`callout${i}`).addEventListener('click', function() {
+                if (isLocked) {
+                    showPopup(images[i-1]);
+                }
+            });
+        }
+
+        function showPopup(imageSrc) {
+            const popup = document.getElementById('popupImage');
+            const closeBtn = document.getElementById('closeBtn');
+            
+            popup.src = imageSrc;
+            popup.classList.add('show');
+            closeBtn.style.display = 'flex';
+            currentPopup = popup;
+        }
+
+        function closePopup() {
+            const popup = document.getElementById('popupImage');
+            const closeBtn = document.getElementById('closeBtn');
+            
+            popup.classList.remove('show');
+            closeBtn.style.display = 'none';
+            currentPopup = null;
+        }
+
+        // Tutup popup saat klik di luar gambar
+        document.addEventListener('click', function(e) {
+            if (currentPopup && !currentPopup.contains(e.target) && !e.target.classList.contains('callout')) {
+                closePopup();
+            }
+        });
+
+        // Inisialisasi
+        initCamera();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97109ca3e7c691bd',t:'MTc1NTUxMTcyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
