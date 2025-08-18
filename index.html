@@ -2,197 +2,177 @@
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Poster Info AR — AR.js (Image Tracking)</title>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/build/ar-threex.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>AR Web — 5 Informasi Futuristik</title>
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
   <style>
-    :root{--glass-bg: rgba(255,255,255,0.06); --glass-border: rgba(255,255,255,0.12)}
-    html,body{height:100%; margin:0; background:#020617; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; color:#e6eef8}
-    /* Mobile-only */
-    @media(min-width:900px){ body{display:flex;align-items:center;justify-content:center} #mobile-only{display:none} }
-
-    /* HUD */
-    .ui { position:fixed; left:12px; right:12px; bottom:18px; z-index:30; display:flex; gap:12px; justify-content:space-between }
-    .glass{backdrop-filter: blur(8px) saturate(120%); background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:12px; padding:10px}
-    .info-panel{position:fixed; left:50%; transform:translateX(-50%); bottom:110px; width:92%; max-width:420px; z-index:40; border-radius:12px; padding:12px; box-shadow:0 20px 40px rgba(0,0,0,0.5); display:none}
-    .info-title{font-weight:700; color:#e6eef8}
-    .hotspot-label{font-weight:700; padding:6px 10px; border-radius:999px; background:#ffffffee; color:#04204a}
-
-    /* Small helper */
-    .muted{color:rgba(230,238,248,0.75); font-size:13px}
-
-    /* Simple fullscreen for a-scene */
-    a-scene{position:fixed; inset:0; z-index:0}
+    body { margin:0; font-family: system-ui, -apple-system, Roboto, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .hint { position:fixed; left:10px; top:10px; background:rgba(0,0,0,0.6); color:#fff; padding:8px 12px; border-radius:8px; z-index:999; font-size:14px }
+    .fallback { display:none; padding:16px; }
+    .card { background: rgba(255,255,255,0.95); border-radius:10px; padding:12px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+    .title { font-weight:700; margin-bottom:6px }
+    .small { font-size:13px; color:#333 }
+    a{ color:#0b84ff }
   </style>
 </head>
 <body>
-  <!-- IMPORTANT NOTE: AR.js image tracking (NFT) requires preprocessed marker files (.fset, .fset3, .iset or .patt pattern files).
-       For production, generate NFT descriptors for your poster image using arjs-nft-tools or use a marker pattern.
-       This demo uses a marker approach (pattern file) as a straightforward fallback. Replace 'markers/poster.patt' with
-       your marker or NFT descriptor. See comments in the code. -->
+  <div class="hint">Arahkan kamera ke marker. (Marker image: https://iili.io/Fmi7QKg.jpg)</div>
 
-  <div id="mobile-only">
-    <!-- A-Frame + AR.js scene -->
-    <a-scene embedded vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true; alpha: true" arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
-
-      <!-- Use a pattern marker anchored to the poster (pattern file expected at markers/poster.patt) -->
-      <!-- For NFT-image tracking use: <a-nft type="nft" url="markers/poster"> ... </a-nft> with preprocessed files -->
-      <a-marker type="pattern" url="markers/poster.patt" emitevents="true">
-
-        <!-- Poster plane (invisible or faint) serves as poster's local coordinate system -->
-        <a-plane id="posterPlane" position="0 0 0" rotation="-90 0 0" width="1.0" height="1.25" material="opacity:0.02; color:#fff"></a-plane>
-
-        <!-- 5 hotspots placed in poster-local coordinates (x,y in meters relative to plane center) -->
-        <!-- We use small 3D spheres with flat-facing labels (billboard) to achieve stability and VR-like feel -->
-        <a-entity id="hotspotsRoot">
-          <a-entity class="hotspot" id="hs1" position="-0.28 0.08 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
-          <a-entity class="hotspot" id="hs2" position="0 0.18 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
-          <a-entity class="hotspot" id="hs3" position="0.3 0.05 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
-          <a-entity class="hotspot" id="hs4" position="-0.12 -0.22 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
-          <a-entity class="hotspot" id="hs5" position="0.22 -0.18 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
-        </a-entity>
-
-      </a-marker>
-
-      <!-- Camera entity A-Frame; id used by look-at -->
-      <a-entity camera id="camera" position="0 0 0"></a-entity>
-
-      <!-- Light for better silhouettes -->
-      <a-entity light="type: ambient; intensity:0.8"></a-entity>
-
-      <!-- Fallback plane for when marker not found (optional) -->
-      <a-entity id="noMarkerText" position="0 0 -1" visible="false">
-        <a-text value="Arahkan kamera ke poster..." align="center" color="#ffffff" width="2"></a-text>
-      </a-entity>
-
-    </a-scene>
-
-    <!-- UI HUD -->
-    <div class="ui">
-      <div class="glass" style="flex:1; display:flex; align-items:center; gap:10px">
-        <div class="muted">Arahkan kamera ke poster untuk menampilkan titik info</div>
+  <!-- Fallback view for desktop / preview -->
+  <div id="preview" class="fallback" style="display:block;">
+    <h3 style="margin:0 0 8px 0">Preview: Informasi Futuristik</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+      <div class="card" style="width:220px">
+        <div class="title">1. Kota Terapung</div>
+        <div class="small">Kota modular terapung yang menyesuaikan diri pada permukaan laut, lengkap dengan pertanian vertikal dan jaringan energi terbarukan.</div>
       </div>
-      <div class="glass" style="width:96px; display:flex; align-items:center; justify-content:center">
-        <div id="markerStatus">—</div>
+      <div class="card" style="width:220px">
+        <div class="title">2. Transportasi Holografik</div>
+        <div class="small">Sistem transit berbasis rute holografis untuk navigasi pejalan kaki & drone yang meminimalkan kecelakaan dan kemacetan.</div>
+      </div>
+      <div class="card" style="width:220px">
+        <div class="title">3. Antarmuka Otak-Komputer</div>
+        <div class="small">Implan non-invasif yang memungkinkan interaksi digital langsung — membaca niat untuk mengetik, menelusur, dan mengontrol perangkat.</div>
+      </div>
+      <div class="card" style="width:220px">
+        <div class="title">4. Energi Fusion Mini</div>
+        <div class="small">Generator fusi skala kecil untuk komunitas kota, memberi listrik bersih dan aman tanpa emisi karbon.</div>
+      </div>
+      <div class="card" style="width:220px">
+        <div class="title">5. Ekosistem AI Kesehatan Pribadi</div>
+        <div class="small">Agen AI yang memantau biometrik real-time, memberikan pencegahan kesehatan proaktif dan perencanaan pengobatan personal.</div>
       </div>
     </div>
-
-    <!-- Info panel -->
-    <div id="infoPanel" class="glass info-panel">
-      <div style="display:flex; justify-content:space-between; align-items:center">
-        <div class="info-title" id="infoTitle">Judul</div>
-        <button id="closeInfo" class="muted" style="background:transparent;border:none">✕</button>
-      </div>
-      <div id="infoDesc" class="muted" style="margin-top:8px">Deskripsi singkat...</div>
-    </div>
-
+    <p style="margin-top:12px;color:#555">Untuk pengalaman AR: download marker image dari <a href="https://iili.io/Fmi7QKg.jpg" target="_blank">https://iili.io/Fmi7QKg.jpg</a> dan konversi ke file <code>marker.patt</code> menggunakan <em>pattern-marker generator</em> (mis. tool AR.js 또는 generator online). Letakkan <code>marker.patt</code> di folder yang sama dengan file ini lalu buka file melalui server lokal (mis. <code>npx http-server</code> atau live-server) karena akses webcam biasanya dibatasi lewat <code>file://</code>.</p>
   </div>
 
+  <!-- A-Frame AR scene -->
+  <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;'>
+
+    <!-- NOTE: AR.js default pattern marker requires a .patt file (marker.patt).
+         Convert your marker image (https://iili.io/Fmi7QKg.jpg) to marker.patt and put it
+         next to this HTML file. If you already have marker.patt, uncomment the marker below.
+    -->
+
+    <!-- Example marker entity (uncomment after you have marker.patt in same folder) -->
+    <!-- <a-marker type="pattern" url="marker.patt">
+      <a-entity id="cards" position="0 0 0">
+        <!-- Five info cards arranged in semicircle above marker -->
+        <a-entity position="0 0.02 0">
+          <a-entity geometry="primitive: plane; height:0.25; width:0.6" material="color: #ffffff; opacity: 0.95" position="0 0.15 0" rotation="-90 0 0" ></a-entity>
+        </a-entity>
+      </a-entity>
+    </a-marker> -->
+
+    <!-- Simple alternative: use a flat plane that appears in front of camera when no marker.patt provided -> useful for testing -->
+    <a-entity id="virtual-info" visible="true" position="0 0 -1.5">
+      <!-- We'll render five small panels as 2D planes -->
+      <a-entity id="panelGroup" position="0 0 -1">
+        <!-- Card 1 -->
+        <a-plane position="-0.9 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card1Tex"></a-plane>
+        <!-- Card 2 -->
+        <a-plane position="-0.3 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card2Tex"></a-plane>
+        <!-- Card 3 -->
+        <a-plane position="0.3 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card3Tex"></a-plane>
+        <!-- Card 4 -->
+        <a-plane position="0.9 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card4Tex"></a-plane>
+        <!-- Card 5 -->
+        <a-plane position="0  -0.12 -2" rotation="0 0 0" width="1.6" height="0.5" material="shader: flat; src: #card5Tex"></a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- Textures for the fallback cards (generated from canvas below) -->
+    <a-assets>
+      <canvas id="card1" width="1024" height="512"></canvas>
+      <canvas id="card2" width="1024" height="512"></canvas>
+      <canvas id="card3" width="1024" height="512"></canvas>
+      <canvas id="card4" width="1024" height="512"></canvas>
+      <canvas id="card5" width="1400" height="512"></canvas>
+
+      <img id="markerImg" src="https://iili.io/Fmi7QKg.jpg" crossorigin="anonymous" />
+    </a-assets>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
   <script>
-    // Explanation + fixes for "getar-getar tidak stabil dan tidak absolut":
-    // 1) Why jitter? -> Using DeviceOrientation (alpha/beta/gamma) alone is noisy, susceptible to magnetic interference and lacks positional tracking.
-    //    Camera-only solutions that try to project 2D UI using device heading/pitch will jitter as sensors update.
-    // 2) Why not 'absolut'? -> Browsers often supply relative orientation, not fused world-referenced pose. Without SLAM (ARCore/ARKit/WebXR), you don't have true world-anchored tracking.
-    // 3) How AR.js helps -> AR.js image (NFT/pattern) tracking does visual pose estimation by detecting the poster image in the camera feed and computing a stable 6DOF transform for the marker.
-    //    This is far more stable than relying on compass/gyro alone. Use NFT image tracking for best poster anchoring.
-    // 4) Further improvements -> Use WebXR (if available) or native ARCore/ARKit for the most robust world tracking. Use higher-resolution marker images and good lighting.
+    // Draw the five cards onto canvases to use as textures in A-Frame fallback view
+    const cards = [
+      {id:'card1', title:'1. Kota Terapung', body:'Modular terapung dengan pertanian vertikal & energi terbarukan.'},
+      {id:'card2', title:'2. Transportasi Holografik', body:'Rute holografis untuk navigasi pejalan kaki & drone.'},
+      {id:'card3', title:'3. Antarmuka Otak-Komputer', body:'Interaksi non-invasif untuk kontrol perangkat & input teks.'},
+      {id:'card4', title:'4. Energi Fusion Mini', body:'Generator fusi skala kecil untuk listrik bersih lokal.'},
+      {id:'card5', title:'5. AI Kesehatan Pribadi', body:'Agen AI yang memantau biometrik real-time & pencegahan proaktif.'}
+    ];
 
-    // Hook events from AR.js / A-Frame to manage UI and hotspot taps
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const scene = document.querySelector('a-scene');
-      const marker = scene.querySelector('a-marker');
-      const hotspots = {
-        hs1: {title:'Info 1', desc:'Keterangan untuk titik 1'},
-        hs2: {title:'Info 2', desc:'Keterangan untuk titik 2'},
-        hs3: {title:'Info 3', desc:'Keterangan untuk titik 3'},
-        hs4: {title:'Info 4', desc:'Keterangan untuk titik 4'},
-        hs5: {title:'Info 5', desc:'Keterangan untuk titik 5'}
-      };
+    function drawCard(canvasId, title, body){
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      // background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      // accent
+      ctx.fillStyle = '#0b84ff';
+      ctx.fillRect(0,0,20,canvas.height);
+      // title
+      ctx.fillStyle = '#111';
+      ctx.font = 'bold 48px sans-serif';
+      ctx.fillText(title, 40, 80);
+      // body
+      ctx.fillStyle = '#333';
+      ctx.font = '28px sans-serif';
+      wrapText(ctx, body, 40, 140, canvas.width - 80, 34);
+    }
 
-      const markerStatus = document.getElementById('markerStatus');
-      const infoPanel = document.getElementById('infoPanel');
-      const infoTitle = document.getElementById('infoTitle');
-      const infoDesc = document.getElementById('infoDesc');
-      const closeInfo = document.getElementById('closeInfo');
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+          ctx.fillText(line, x, y);
+          line = words[n] + ' ';
+          y += lineHeight;
+        }
+        else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, y);
+    }
 
-      closeInfo.addEventListener('click', ()=> infoPanel.style.display='none');
-
-      // Marker found / lost events
-      marker.addEventListener('markerFound', ()=>{
-        markerStatus.innerText = 'Poster terdeteksi';
-      });
-      marker.addEventListener('markerLost', ()=>{
-        markerStatus.innerText = '—';
-        infoPanel.style.display = 'none';
-      });
-
-      // Set up click/touch handlers on hotspot entities
-      Object.keys(hotspots).forEach(id=>{
-        const el = document.getElementById(id);
-        if(!el) return;
-        // Use raycaster via touch -- A-Frame will handle raycasting from camera screen tap
-        el.addEventListener('click', (evt)=>{
-          const data = hotspots[id];
-          infoTitle.innerText = data.title;
-          infoDesc.innerText = data.desc;
-          infoPanel.style.display = 'block';
-        });
-
-        // Add small label as child (billboard) for clarity
-        const label = document.createElement('a-entity');
-        label.setAttribute('text', `value: ${id.replace('hs','')}; align:center; color:#04204a; width:0.6`);
-        label.setAttribute('position', '0 0.06 0');
-        label.setAttribute('scale', '1 1 1');
-        // always face camera: by using look-at in a-frame we used look-at="#camera" in entities
-        el.appendChild(label);
-      });
-
-      // Optional: smoothing for marker pose (AR.js already filters, but you can lerp transforms for extra smoothness)
-      // Example: lerp position/rotation of hotspotsRoot towards marker's transform to reduce micro-jitter
-      const root = document.getElementById('hotspotsRoot');
-      let smoothing = true;
-      let lerpAlpha = 0.25; // lower = smoother but slower
-
-      // We will sample marker.object3D matrix each tick and apply smoothing
-      scene.addEventListener('renderstart', ()=>{
-        scene.renderer.setAnimationLoop(()=>{
-          if(!marker.object3D.visible) return;
-          if(!smoothing){ return; }
-          // target matrix
-          const target = marker.object3D;
-          // apply smoothing by interpolating position & quaternion
-          // get world position/quaternion
-          const worldPos = new THREE.Vector3();
-          const worldQuat = new THREE.Quaternion();
-          target.getWorldPosition(worldPos);
-          target.getWorldQuaternion(worldQuat);
-
-          // get current
-          const curPos = root.object3D.position;
-          const curQuat = root.object3D.quaternion;
-
-          // lerp
-          curPos.lerp(worldPos, lerpAlpha);
-          curQuat.slerp(worldQuat, lerpAlpha);
-
-          // set root to identity relative to marker by applying inverse marker transform
-          // (we attach hotspots as children of marker in markup, so this smoothing approach is optional/advanced)
-        });
-      });
-
-      // Tips printed to console
-      console.log('AR.js scene initialized. Use good lighting and ensure poster image has rich features. For best stability, create NFT descriptors for the poster and use <a-nft> element instead of pattern.');
+    cards.forEach((c, i) => {
+      drawCard(c.id, c.title, c.body);
     });
-  </script>
 
-  <!-- NOTES for deployment:
-       - Place a marker pattern at public/markers/poster.patt for the demo to run.
-       - For higher stability use NFT (image descriptors) and replace <a-marker type="pattern"> with <a-nft url="markers/poster">.
-       - For production consider WebXR (native AR) or ARCore/ARKit for 6DOF SLAM tracking — AR.js is a robust web-first option but not as robust
-         as platform AR for large movements and long-term anchors.
-  -->
+    // connect canvases to A-Frame assets
+    setTimeout(()=>{
+      document.querySelector('#card1Tex')?.parentNode && null; // no-op to satisfy some linters
+      // create image elements from canvases and attach to assets for plane materials
+      for (let i=0;i<cards.length;i++){
+        const canvas = document.getElementById(cards[i].id);
+        const dataURL = canvas.toDataURL();
+        const img = document.createElement('img');
+        img.id = 'card' + (i+1) + 'Tex';
+        img.src = dataURL;
+        document.querySelector('a-assets').appendChild(img);
+      }
+      // hide preview hint if AR is available
+      const previewEl = document.getElementById('preview');
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        previewEl.style.display = 'none';
+      }
+    },300);
+
+    // Helpful note for user: if you want these cards to appear anchored to the marker,
+    // replace the <a-entity id="virtual-info"> group with an <a-marker type="pattern" url="marker.patt"> and move the panels inside that marker element. 
+    // Example (uncomment in HTML):
+    // <a-marker type="pattern" url="marker.patt"> ...panels... </a-marker>
+
+  </script>
 </body>
 </html>
