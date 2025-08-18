@@ -2,141 +2,289 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Poster AR - Bullets 1-5 (MindAR + A-Frame)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+  <title>Poster AR Bullets 1-5 (MindAR + A-Frame)</title>
 
-  <!-- MindAR + A-Frame (versi yang kompatibel) -->
-  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
+  <!-- A-Frame first, then MindAR -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
-    body { margin:0; font-family: system-ui, sans-serif; }
-    #ui {
-      position: absolute; left: 10px; top: 10px; z-index: 20; color: white;
-      display:flex; gap:8px; align-items:center;
-      pointer-events: auto;
+    html,body { height:100%; margin:0; background:#000; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial; }
+    #controls {
+      position: absolute; z-index: 50; left: 12px; top: 12px;
+      display:flex; gap:8px; align-items:center; pointer-events:auto;
+      background: rgba(0,0,0,0.35); padding:8px; border-radius:8px;
     }
-    button { padding:8px 10px; border-radius:6px; border:none; background:#1f2937; color:#fff; }
+    button { padding:8px 10px; border-radius:8px; border: none; background:#111827; color:#fff; cursor:pointer; }
+    button.secondary { background: #374151; }
+    #status { color:white; font-size:14px; margin-left:8px; }
+    #help { position: absolute; z-index:50; left: 12px; bottom: 12px; color: #fff; background: rgba(0,0,0,0.35); padding:6px 10px; border-radius:8px;}
   </style>
 </head>
 <body>
-  <div id="ui">
-    <button id="prev">Prev</button>
-    <button id="next">Next</button>
-    <div id="status">Status: waiting for target...</div>
+  <div id="controls">
+    <button id="startBtn">Start AR (camera)</button>
+    <button id="stopBtn" class="secondary" disabled>Stop AR</button>
+    <button id="prevBtn" class="secondary" disabled>Prev</button>
+    <button id="playPauseBtn" class="secondary" disabled>Play</button>
+    <button id="nextBtn" class="secondary" disabled>Next</button>
+    <button id="showAllBtn" class="secondary" disabled>Show All</button>
+    <div id="status">Ready — tekan Start AR</div>
   </div>
 
-  <!-- mindar-image attribute: imageTargetSrc -> path to targets.mind -->
-  <a-scene mindar-image="imageTargetSrc: https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind; maxTrack: 1;"
-           vr-mode-ui="enabled: false"
-           embedded
-           device-orientation-permission-ui="enabled: false"
-           background="color: #000000">
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <div id="help">Poster aspect ratio: <strong>4:5</strong>. Pastikan kamera boleh akses.</div>
 
-    <!-- anchor untuk targetIndex 0 (poster pertama) -->
+  <!-- MindAR A-Frame scene; autoStart false so we can request permission first -->
+  <a-scene
+    mindar-image="imageTargetSrc: https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind; maxTrack: 1; autoStart: false;"
+    embedded
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    background="color: #000000">
+
+    <!-- camera: don't use look-controls; MindAR drives camera via AR -->
+    <a-camera position="0 0 0"></a-camera>
+
+    <!-- anchor for the poster (targetIndex: 0) -->
     <a-entity id="posterAnchor" mindar-image-target="targetIndex: 0">
-      <!-- optional: transparent plane same aspect as poster to help positioning -->
-      <!-- MindAR maps the image to a rectangle 1 unit wide by (height) units high.
-           Poster aspect = 4:5 (width:height) -> height = (5/4) * width.
-           By default width=1 -> height = 1 * (targetHeight) */
-/>
-      <a-plane id="posterPlane" width="1" height="1.25" color="#000" opacity="0.0" position="0 0 0"></a-plane>
+      <!-- invisible plane matching poster aspect (width=1 -> height=1.25 because 5/4 = 1.25) -->
+      <a-plane id="posterPlane" width="1" height="1.25" position="0 0 0" rotation="0 0 0" material="opacity:0"></a-plane>
 
-      <!-- BULLETS: 5 markers. Positions are relative to poster plane (x right, y up). 
-           Center of poster is (0,0,0). width 1 spans -0.5..+0.5 -->
-      <a-entity id="bulletsGroup" position="0 0.01 0.01"> 
-        <!-- We'll create five numbered planes -->
-        <a-entity id="b1" position="-0.35 0.45 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+      <!-- bulletsGroup sits slightly above the poster surface (z small positive) -->
+      <a-entity id="bulletsGroup" position="0 0 0.01">
+        <!-- 5 numbered bullets. Tweak positions (x,y) to align dengan desain poster.
+             Coordinate system: poster plane center = (0,0). width spans -0.5..+0.5, height -0.625..+0.625 -->
+        <a-entity id="bullet1" position="-0.35 0.45 0" visible="false"
+                  geometry="primitive: plane; width:0.18; height:0.12"
                   material="color: #ffffff; shader: flat; opacity: 0.95"
-                  text="value: 1; align: center; width: 1.5; color: black; wrapCount: 10; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+                  text="value: 1; align: center; width: 1.5; color: black;"></a-entity>
 
-        <a-entity id="b2" position="-0.35 0.15 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+        <a-entity id="bullet2" position="-0.35 0.15 0" visible="false"
+                  geometry="primitive: plane; width:0.18; height:0.12"
                   material="color: #ffffff; shader: flat; opacity: 0.95"
-                  text="value: 2; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+                  text="value: 2; align: center; width: 1.5; color: black;"></a-entity>
 
-        <a-entity id="b3" position="-0.35 -0.15 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+        <a-entity id="bullet3" position="-0.35 -0.15 0" visible="false"
+                  geometry="primitive: plane; width:0.18; height:0.12"
                   material="color: #ffffff; shader: flat; opacity: 0.95"
-                  text="value: 3; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+                  text="value: 3; align: center; width: 1.5; color: black;"></a-entity>
 
-        <a-entity id="b4" position="0.25 0.2 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+        <a-entity id="bullet4" position="0.25 0.2 0" visible="false"
+                  geometry="primitive: plane; width:0.18; height:0.12"
                   material="color: #ffffff; shader: flat; opacity: 0.95"
-                  text="value: 4; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+                  text="value: 4; align: center; width: 1.5; color: black;"></a-entity>
 
-        <a-entity id="b5" position="0.25 -0.2 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+        <a-entity id="bullet5" position="0.25 -0.2 0" visible="false"
+                  geometry="primitive: plane; width:0.18; height:0.12"
                   material="color: #ffffff; shader: flat; opacity: 0.95"
-                  text="value: 5; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+                  text="value: 5; align: center; width: 1.5; color: black;"></a-entity>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    // Basic logic: show bullets one-by-one (prev/next) and auto-show when poster found.
-    const nextBtn = document.getElementById('next');
-    const prevBtn = document.getElementById('prev');
-    const status = document.getElementById('status');
+    // DOM refs
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const showAllBtn = document.getElementById('showAllBtn');
+    const statusEl = document.getElementById('status');
 
-    const bulletIds = ['b1','b2','b3','b4','b5'];
-    let idx = 0;
+    const bulletIds = ['bullet1','bullet2','bullet3','bullet4','bullet5'];
+    let currentIndex = 0;
+    let playing = false;
+    let playInterval = null;
+    const playDelay = 3000; // ms per bullet when auto-play
 
-    function showIndex(i) {
-      bulletIds.forEach((id, j) => {
+    const scene = document.querySelector('a-scene');
+    const anchor = document.getElementById('posterAnchor');
+
+    // Utility show/hide
+    function showOnly(i) {
+      bulletIds.forEach((id, idx) => {
         const el = document.getElementById(id);
         if (!el) return;
-        el.setAttribute('visible', j === i);
-        // small pop animation when shown
-        if (j === i) {
-          el.setAttribute('scale','0.1 0.1 0.1');
-          el.removeAttribute('animation__scale');
-          el.setAttribute('animation__scale', 'property: scale; to: 1 1 1; dur: 300; easing: easeOutElastic;');
+        el.setAttribute('visible', idx === i);
+        if (idx === i) {
+          // simple pop animation
+          el.setAttribute('scale', '0.1 0.1 0.1');
+          el.removeAttribute('animation__pop');
+          el.setAttribute('animation__pop', 'property: scale; to: 1 1 1; dur: 350; easing: easeOutElastic;');
         }
       });
-      status.innerText = `Status: bullet ${i+1} / ${bulletIds.length}`;
+      statusEl.innerText = `Showing ${i+1} / ${bulletIds.length}`;
     }
-
-    nextBtn.addEventListener('click', () => {
-      idx = Math.min(idx + 1, bulletIds.length - 1);
-      showIndex(idx);
-    });
-    prevBtn.addEventListener('click', () => {
-      idx = Math.max(idx - 1, 0);
-      showIndex(idx);
-    });
-
-    // MindAR events: targetFound / targetLost
-    const scene = document.querySelector('a-scene');
-    scene.addEventListener('renderstart', () => {
-      // render started
-      console.log('A-Frame renderstart');
-    });
-
-    const targetEntity = document.querySelector('[mindar-image-target]');
-    targetEntity.addEventListener('targetFound', (ev) => {
-      console.log('target found', ev);
-      status.innerText = 'Status: target found — showing bullets';
-      // show first bullet when found
-      idx = 0;
-      showIndex(idx);
-    });
-
-    targetEntity.addEventListener('targetLost', (ev) => {
-      console.log('target lost', ev);
-      status.innerText = 'Status: target lost — hiding bullets';
-      // hide all
+    function hideAll() {
       bulletIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.setAttribute('visible', false);
       });
+      statusEl.innerText = 'Target lost / hidden';
+    }
+    function showAll() {
+      bulletIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('visible', true);
+      });
+      statusEl.innerText = 'Showing all bullets';
+    }
+
+    // Prev / Next functions
+    function goPrev() {
+      currentIndex = Math.max(0, currentIndex - 1);
+      showOnly(currentIndex);
+    }
+    function goNext() {
+      currentIndex = Math.min(bulletIds.length - 1, currentIndex + 1);
+      showOnly(currentIndex);
+    }
+
+    // Play / Pause (auto sequence)
+    function startPlaying() {
+      if (playing) return;
+      playing = true;
+      playPauseBtn.innerText = 'Pause';
+      playInterval = setInterval(() => {
+        currentIndex = (currentIndex + 1) % bulletIds.length;
+        showOnly(currentIndex);
+      }, playDelay);
+    }
+    function stopPlaying() {
+      playing = false;
+      playPauseBtn.innerText = 'Play';
+      if (playInterval) { clearInterval(playInterval); playInterval = null; }
+    }
+
+    // Hook buttons
+    prevBtn.addEventListener('click', goPrev);
+    nextBtn.addEventListener('click', goNext);
+    playPauseBtn.addEventListener('click', () => {
+      if (playing) stopPlaying(); else startPlaying();
+    });
+    showAllBtn.addEventListener('click', () => {
+      // toggle showAll
+      const anyHidden = bulletIds.some(id => !document.getElementById(id).getAttribute('visible'));
+      if (anyHidden) showAll(); else hideAll();
     });
 
-    // Auto-detect taps on bullets (optional)
-    bulletIds.forEach(id => {
+    // Bullet clicks -> show an info bubble (simple alert for demo)
+    bulletIds.forEach((id, idx) => {
       const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('click', () => {
-        alert('Kamu klik bullet ' + id.slice(1));
+      el.addEventListener('click', (ev) => {
+        // prevent multiple triggers
+        ev.stopPropagation && ev.stopPropagation();
+        alert('Info untuk bullet #' + (idx+1) + '\\n(Tap di sini bisa diganti jadi modal atau audio)');
       });
+    });
+
+    // MindAR events: targetFound / targetLost
+    // NOTE: mindar-image-aframe dispatches events on the target entity
+    anchor.addEventListener('targetFound', (ev) => {
+      console.log('targetFound', ev);
+      statusEl.innerText = 'Target found — showing bullets';
+      // enable UI controls
+      prevBtn.disabled = false;
+      nextBtn.disabled = false;
+      playPauseBtn.disabled = false;
+      showAllBtn.disabled = false;
+      stopBtn.disabled = false;
+      // show first bullet by default
+      currentIndex = 0;
+      showOnly(currentIndex);
+      // don't auto-play unless user toggles Play
+    });
+
+    anchor.addEventListener('targetLost', (ev) => {
+      console.log('targetLost', ev);
+      // hide bullets and disable controls
+      hideAll();
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      playPauseBtn.disabled = true;
+      showAllBtn.disabled = true;
+      stopBtn.disabled = true;
+      stopPlaying();
+    });
+
+    // Start/Stop AR: request camera permission & start MindAR
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      statusEl.innerText = 'Requesting camera permission...';
+      try {
+        // start MindAR via A-Frame component if available
+        // the MindAR A-Frame component exposes 'start' on the scene element's components
+        // we try multiple approaches for robustness
+        const mindarComp = scene.components['mindar-image'];
+        if (mindarComp && typeof mindarComp.start === 'function') {
+          await mindarComp.start();
+        } else {
+          // fallback: try system
+          const sys = scene.systems['mindar-image-system'];
+          if (sys && typeof sys.start === 'function') {
+            await sys.start();
+          } else {
+            // Last fallback: try invoking global MindAR A-Frame start (some builds expose this)
+            if (window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.start) {
+              await window.MINDAR.IMAGE.start();
+            } else {
+              console.warn('Could not find MindAR start API on A-Frame scene. Trying to simulate start by focusing camera.');
+            }
+          }
+        }
+
+        statusEl.innerText = 'AR started — point camera to poster';
+        stopBtn.disabled = false;
+        // enable prev/next only after target found (we keep them disabled until detection)
+        // showAll disabled until target found as well
+      } catch (err) {
+        console.error('Start AR error', err);
+        alert('Gagal mengakses kamera: ' + (err && err.message ? err.message : err));
+        statusEl.innerText = 'Start failed — check camera permissions or HTTPS';
+        startBtn.disabled = false;
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      stopBtn.disabled = true;
+      statusEl.innerText = 'Stopping AR...';
+      try {
+        const mindarComp = scene.components['mindar-image'];
+        if (mindarComp && typeof mindarComp.stop === 'function') {
+          await mindarComp.stop();
+        } else {
+          const sys = scene.systems['mindar-image-system'];
+          if (sys && typeof sys.stop === 'function') {
+            await sys.stop();
+          }
+        }
+      } catch (err) {
+        console.warn('Stop error', err);
+      }
+      // hide UI and bullets
+      hideAll();
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      playPauseBtn.disabled = true;
+      showAllBtn.disabled = true;
+      startBtn.disabled = false;
+      statusEl.innerText = 'Stopped';
+      stopPlaying();
+    });
+
+    // Nice-to-have: keyboard shortcuts (desktop)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') nextBtn.click();
+      if (e.key === 'ArrowLeft') prevBtn.click();
+      if (e.key === ' ') playPauseBtn.click();
+    });
+
+    // Defensive: if user closes page, stop AR
+    window.addEventListener('pagehide', () => {
+      try { scene.components['mindar-image'] && scene.components['mindar-image'].stop(); } catch(e){}
     });
   </script>
 </body>
