@@ -3,379 +3,196 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Poster Info AR — Mobile</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Poster Info AR — AR.js (Image Tracking)</title>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/build/ar-threex.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--glass-bg: rgba(255,255,255,0.08); --glass-border: rgba(255,255,255,0.12);}
-    html,body,#app{height:100%;}
-    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:#020617;color:#e6eef8;}
+    :root{--glass-bg: rgba(255,255,255,0.06); --glass-border: rgba(255,255,255,0.12)}
+    html,body{height:100%; margin:0; background:#020617; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; color:#e6eef8}
+    /* Mobile-only */
+    @media(min-width:900px){ body{display:flex;align-items:center;justify-content:center} #mobile-only{display:none} }
 
-    /* Fullscreen video behind overlays */
-    #camera {position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#000}
-    /* Mobile-only: hide on wide screens */
-    @media(min-width:900px){ #app{display:flex;align-items:center;justify-content:center} #mobile-only{display:none} }
+    /* HUD */
+    .ui { position:fixed; left:12px; right:12px; bottom:18px; z-index:30; display:flex; gap:12px; justify-content:space-between }
+    .glass{backdrop-filter: blur(8px) saturate(120%); background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:12px; padding:10px}
+    .info-panel{position:fixed; left:50%; transform:translateX(-50%); bottom:110px; width:92%; max-width:420px; z-index:40; border-radius:12px; padding:12px; box-shadow:0 20px 40px rgba(0,0,0,0.5); display:none}
+    .info-title{font-weight:700; color:#e6eef8}
+    .hotspot-label{font-weight:700; padding:6px 10px; border-radius:999px; background:#ffffffee; color:#04204a}
 
-    /* Poster selector (4:5 ratio) */
-    .poster-box{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:48vw; aspect-ratio:4/5; border-radius:14px; border:2px dashed rgba(255,255,255,0.22); box-shadow:0 6px 30px rgba(2,6,23,0.6); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px) saturate(120%);}
-    .poster-handle{position:absolute; width:18px;height:18px;border-radius:50%; background:linear-gradient(180deg,#fff,#cfe6ff); box-shadow:0 6px 18px rgba(37,99,235,0.18); border:2px solid rgba(255,255,255,0.6);}
-    .poster-label{position:absolute; top:10px; left:12px; background:linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); padding:8px 12px; border-radius:999px; border:1px solid var(--glass-border); font-weight:600; font-size:14px}
+    /* Small helper */
+    .muted{color:rgba(230,238,248,0.75); font-size:13px}
 
-    /* Glass-morph HUD */
-    .hud{position:fixed; left:12px; right:12px; bottom:18px; z-index:60; display:flex; gap:12px; justify-content:space-between}
-    .glass{backdrop-filter: blur(8px) saturate(120%); background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:14px; padding:12px; box-shadow: 0 6px 30px rgba(2,6,23,0.6)}
-
-    /* Hotspot style */
-    .hotspot{position:absolute; transform:translate(-50%,-50%); min-width:48px; min-height:48px; display:flex; align-items:center; justify-content:center; border-radius:999px; font-weight:700; color:#05204a; z-index:50; box-shadow:0 6px 25px rgba(2,6,23,0.45);}
-    .hotspot .pill{padding:6px 10px; border-radius:999px; backdrop-filter: blur(6px);}
-
-    /* Info card */
-    .info-card{position:fixed; left:50%; transform:translateX(-50%); bottom:110px; z-index:70; width:92%; max-width:420px; border-radius:14px; padding:12px 14px; box-shadow:0 20px 40px rgba(2,6,23,0.6);}
-    .close-x{position:absolute; right:10px; top:8px; opacity:0.7}
-
-    /* small helper text */
-    .muted{color:rgba(230,238,248,0.7); font-size:13px}
-
-    /* Animations */
-    .pulse{animation:pulse 1.8s infinite ease-in-out}
-    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+    /* Simple fullscreen for a-scene */
+    a-scene{position:fixed; inset:0; z-index:0}
   </style>
 </head>
 <body>
-  <div id="app">
+  <!-- IMPORTANT NOTE: AR.js image tracking (NFT) requires preprocessed marker files (.fset, .fset3, .iset or .patt pattern files).
+       For production, generate NFT descriptors for your poster image using arjs-nft-tools or use a marker pattern.
+       This demo uses a marker approach (pattern file) as a straightforward fallback. Replace 'markers/poster.patt' with
+       your marker or NFT descriptor. See comments in the code. -->
 
-    <!-- Camera (video) -->
-    <video id="camera" autoplay playsinline muted></video>
+  <div id="mobile-only">
+    <!-- A-Frame + AR.js scene -->
+    <a-scene embedded vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true; alpha: true" arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
 
-    <!-- Mobile-only UI -->
-    <div id="mobile-only">
+      <!-- Use a pattern marker anchored to the poster (pattern file expected at markers/poster.patt) -->
+      <!-- For NFT-image tracking use: <a-nft type="nft" url="markers/poster"> ... </a-nft> with preprocessed files -->
+      <a-marker type="pattern" url="markers/poster.patt" emitevents="true">
 
-      <!-- Poster selector overlay -->
-      <div id="posterBox" class="poster-box glass" aria-hidden="false">
-        <div class="poster-label">Posisikan poster (rasio 4:5)</div>
-        <div style="text-align:center; max-width:70%">
-          <div style="font-weight:600; font-size:13px">Taruh bingkai di atas poster</div>
-          <div class="muted" style="font-size:12px">Gunakan satu jari untuk geser • cubit untuk ubah ukuran</div>
-        </div>
+        <!-- Poster plane (invisible or faint) serves as poster's local coordinate system -->
+        <a-plane id="posterPlane" position="0 0 0" rotation="-90 0 0" width="1.0" height="1.25" material="opacity:0.02; color:#fff"></a-plane>
+
+        <!-- 5 hotspots placed in poster-local coordinates (x,y in meters relative to plane center) -->
+        <!-- We use small 3D spheres with flat-facing labels (billboard) to achieve stability and VR-like feel -->
+        <a-entity id="hotspotsRoot">
+          <a-entity class="hotspot" id="hs1" position="-0.28 0.08 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
+          <a-entity class="hotspot" id="hs2" position="0 0.18 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
+          <a-entity class="hotspot" id="hs3" position="0.3 0.05 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
+          <a-entity class="hotspot" id="hs4" position="-0.12 -0.22 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
+          <a-entity class="hotspot" id="hs5" position="0.22 -0.18 0.01" look-at="#camera" geometry="primitive: sphere; radius:0.03" material="color:#fff"></a-entity>
+        </a-entity>
+
+      </a-marker>
+
+      <!-- Camera entity A-Frame; id used by look-at -->
+      <a-entity camera id="camera" position="0 0 0"></a-entity>
+
+      <!-- Light for better silhouettes -->
+      <a-entity light="type: ambient; intensity:0.8"></a-entity>
+
+      <!-- Fallback plane for when marker not found (optional) -->
+      <a-entity id="noMarkerText" position="0 0 -1" visible="false">
+        <a-text value="Arahkan kamera ke poster..." align="center" color="#ffffff" width="2"></a-text>
+      </a-entity>
+
+    </a-scene>
+
+    <!-- UI HUD -->
+    <div class="ui">
+      <div class="glass" style="flex:1; display:flex; align-items:center; gap:10px">
+        <div class="muted">Arahkan kamera ke poster untuk menampilkan titik info</div>
       </div>
-
-      <!-- Controls HUD -->
-      <div class="hud">
-        <div class="glass" id="leftHud" style="flex:1; display:flex; gap:10px; align-items:center;">
-          <button id="btnSet" class="px-4 py-2 rounded-xl text-sm font-semibold" style="background:linear-gradient(90deg,#60a5fa,#3b82f6); color:white">Tentukan Lokasi</button>
-          <button id="btnReset" class="px-3 py-2 rounded-xl text-sm font-semibold" style="background:transparent; border:1px solid rgba(255,255,255,0.06); color:#dbeafe">Atur Ulang</button>
-        </div>
-        <div class="glass" style="width:86px; display:flex; align-items:center; justify-content:center;">
-          <div id="statusHeading">—°</div>
-        </div>
+      <div class="glass" style="width:96px; display:flex; align-items:center; justify-content:center">
+        <div id="markerStatus">—</div>
       </div>
+    </div>
 
-      <!-- Hotspots container (world anchored) -->
-      <div id="hotspotsContainer"></div>
-
-      <!-- Info Card (hidden initially) -->
-      <div id="infoCard" class="glass info-card hidden">
-        <button id="closeInfo" class="close-x">✕</button>
-        <div id="infoTitle" style="font-weight:800; font-size:16px">Judul</div>
-        <div id="infoBody" class="muted" style="margin-top:6px; font-size:14px">Deskripsi singkat akan muncul di sini ketika kamu mengetuk titik informasi.</div>
+    <!-- Info panel -->
+    <div id="infoPanel" class="glass info-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center">
+        <div class="info-title" id="infoTitle">Judul</div>
+        <button id="closeInfo" class="muted" style="background:transparent;border:none">✕</button>
       </div>
-
+      <div id="infoDesc" class="muted" style="margin-top:8px">Deskripsi singkat...</div>
     </div>
 
   </div>
 
   <script>
-    /* Poster Info AR — single-file mobile web app
-       Behavior summary (implemented):
-       - Minta akses kamera (video) dan DeviceOrientation.
-       - Tampilkan draggable/resizable 4:5 rectangle sebagai "penentuan lokasi poster".
-       - Saat pengguna menekan "Tentukan Lokasi", kita menghitung 'poster anchor' dalam dunia menggunakan:
-         - heading saat itu (DeviceOrientation alpha as absolute if available)
-         - posisi rectangle relatif ke layar -> convert ke bearing offset using assumed camera horizontal FOV
-       - Buat 5 hotspot yang berposisi relatif terhadap poster (normalized coordinates),
-         lalu 'world-anchor' mereka: komputasi tiap frame menggunakan heading & pitch agar titik tetap di koordinat dunia
-       - Hasil: meskipun kamera bergerak/berputar, hotspot tampil seperti ter-anchored ke poster (VR-like)
-    */
+    // Explanation + fixes for "getar-getar tidak stabil dan tidak absolut":
+    // 1) Why jitter? -> Using DeviceOrientation (alpha/beta/gamma) alone is noisy, susceptible to magnetic interference and lacks positional tracking.
+    //    Camera-only solutions that try to project 2D UI using device heading/pitch will jitter as sensors update.
+    // 2) Why not 'absolut'? -> Browsers often supply relative orientation, not fused world-referenced pose. Without SLAM (ARCore/ARKit/WebXR), you don't have true world-anchored tracking.
+    // 3) How AR.js helps -> AR.js image (NFT/pattern) tracking does visual pose estimation by detecting the poster image in the camera feed and computing a stable 6DOF transform for the marker.
+    //    This is far more stable than relying on compass/gyro alone. Use NFT image tracking for best poster anchoring.
+    // 4) Further improvements -> Use WebXR (if available) or native ARCore/ARKit for the most robust world tracking. Use higher-resolution marker images and good lighting.
 
-    // --- Configuration ---
-    const HORIZONTAL_FOV = 60; // assumed camera horizontal FOV in degrees (approx for many phones)
-    const VERTICAL_FOV = 45;   // approximate vertical FOV
-    const SHOW_FOV_GUIDE = false;
-    const HOTSPOT_COUNT = 5;
-
-    // DOM
-    const video = document.getElementById('camera');
-    const posterBox = document.getElementById('posterBox');
-    const btnSet = document.getElementById('btnSet');
-    const btnReset = document.getElementById('btnReset');
-    const hotspotsContainer = document.getElementById('hotspotsContainer');
-    const infoCard = document.getElementById('infoCard');
-    const infoTitle = document.getElementById('infoTitle');
-    const infoBody = document.getElementById('infoBody');
-    const closeInfo = document.getElementById('closeInfo');
-    const statusHeading = document.getElementById('statusHeading');
-
-    let deviceHeading = 0; // 0-360 — alpha mapped to compass-like heading
-    let devicePitch = 0; // beta
-    let deviceRoll = 0; // gamma
-
-    // Poster anchor state
-    let posterAnchor = null; // {bearing:°, verticalAngle:°, angularWidth:°, angularHeight:°, distance: m}
-
-    // Hotspots model (normalized positions inside poster [0..1] x [0..1])
-    const hotspotModel = [];
-
-    for(let i=0;i<HOTSPOT_COUNT;i++){
-      hotspotModel.push({id:i+1, x: 0.15 + (i*0.15) % 0.7, y: 0.2 + (i*0.12) % 0.6, title: `Info ${i+1}`, desc: `Detail singkat untuk titik info ${i+1}. Jelajahi lebih lanjut untuk melihat konten.`});
-    }
-
-    // create hotspot elements
-    const hotspotEls = {};
-    function createHotspotEl(h){
-      const el = document.createElement('div');
-      el.className = 'hotspot pulse';
-      el.style.zIndex = 55;
-      const pill = document.createElement('div');
-      pill.className = 'pill glass';
-      pill.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(230,245,255,0.9))';
-      pill.style.color = '#04204a';
-      pill.style.padding = '8px 12px';
-      pill.style.fontSize = '14px';
-      pill.textContent = h.id;
-      el.appendChild(pill);
-      el.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        showInfo(h);
-      });
-      hotspotsContainer.appendChild(el);
-      hotspotEls[h.id] = el;
-    }
-    hotspotModel.forEach(createHotspotEl);
-
-    function showInfo(h){
-      infoTitle.textContent = h.title;
-      infoBody.textContent = h.desc;
-      infoCard.classList.remove('hidden');
-    }
-    closeInfo.addEventListener('click', ()=> infoCard.classList.add('hidden'));
-
-    // --- Camera ---
-    async function startCamera(){
-      try{
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        video.srcObject = stream;
-        await video.play();
-      }catch(e){
-        alert('Gagal mengakses kamera — pastikan izinkan akses dan gunakan perangkat mobile.');
-        console.error(e);
-      }
-    }
-
-    // --- Device orientation ---
-    function handleOrientation(e){
-      // Prefer absolute (alpha) if available
-      const alpha = (e.absolute && e.alpha !== null) ? e.alpha : e.alpha || 0;
-      const beta = e.beta || 0;
-      const gamma = e.gamma || 0;
-
-      // Convert to compass-like heading: alpha: 0 = north on most devices when absolute true
-      deviceHeading = (360 - alpha) % 360; // keep same convention as earlier app
-      devicePitch = beta; deviceRoll = gamma;
-      statusHeading.textContent = `${Math.round(deviceHeading)}°`;
-    }
-
-    if(window.DeviceOrientationEvent){
-      window.addEventListener('deviceorientation', handleOrientation, true);
-      // also try deviceorientationabsolute for some devices
-      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-    }
-
-    // --- Poster box interactions (drag + pinch to scale) ---
-    let isDragging = false; let dragStart = null; let boxStart = null;
-    let isPinching = false; let pinchStartDist = 0; let boxStartWidth = 0;
-
-    function getTouchDistance(t1,t2){
-      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-    }
-
-    posterBox.addEventListener('touchstart', (ev)=>{
-      ev.preventDefault();
-      if(ev.touches.length === 1){
-        isDragging = true;
-        dragStart = {x: ev.touches[0].clientX, y: ev.touches[0].clientY};
-        const rect = posterBox.getBoundingClientRect();
-        boxStart = {left: rect.left, top: rect.top, width: rect.width, height: rect.height};
-      } else if(ev.touches.length === 2){
-        isPinching = true;
-        pinchStartDist = getTouchDistance(ev.touches[0], ev.touches[1]);
-        boxStartWidth = posterBox.getBoundingClientRect().width;
-      }
-    }, {passive:false});
-
-    posterBox.addEventListener('touchmove', (ev)=>{
-      ev.preventDefault();
-      const vw = window.innerWidth, vh = window.innerHeight;
-      if(isDragging && ev.touches.length===1){
-        const dx = ev.touches[0].clientX - dragStart.x;
-        const dy = ev.touches[0].clientY - dragStart.y;
-        // move keeping center translation
-        posterBox.style.left = `calc(50% + ${dx}px)`;
-        posterBox.style.top = `calc(50% + ${dy}px)`;
-        posterBox.style.transform = 'translate(-50%,-50%)';
-      } else if(isPinching && ev.touches.length===2){
-        const dist = getTouchDistance(ev.touches[0], ev.touches[1]);
-        const scale = dist / pinchStartDist;
-        let newWidth = Math.max(80, Math.min(window.innerWidth * 0.9, boxStartWidth * scale));
-        // maintain 4:5 aspect ratio via CSS aspect-ratio
-        posterBox.style.width = newWidth + 'px';
-      }
-    }, {passive:false});
-
-    posterBox.addEventListener('touchend', (ev)=>{
-      if(ev.touches.length===0){ isDragging=false; isPinching=false; }
-    });
-
-    // Reset
-    btnReset.addEventListener('click', ()=>{
-      posterBox.style.left='50%'; posterBox.style.top='50%'; posterBox.style.width='48vw'; posterBox.style.transform='translate(-50%,-50%)';
-      posterAnchor = null; hideAllHotspots(); infoCard.classList.add('hidden');
-    });
-
-    // --- When user sets poster location ---
-    btnSet.addEventListener('click', ()=>{
-      // compute poster center relative to screen
-      const vb = posterBox.getBoundingClientRect();
-      const centerX = vb.left + vb.width/2;
-      const centerY = vb.top + vb.height/2;
-      const screenW = window.innerWidth, screenH = window.innerHeight;
-
-      // normalized offsets from screen center [-0.5 .. 0.5]
-      const nx = (centerX / screenW) - 0.5; // positive = right
-      const ny = (centerY / screenH) - 0.5; // positive = down
-
-      // Poster angular width/height based on fraction of screen and camera FOV assumption
-      const angularWidth = (vb.width / screenW) * HORIZONTAL_FOV; // degrees
-      const angularHeight = (vb.height / screenH) * VERTICAL_FOV; // degrees
-
-      // posterBearing: deviceHeading + horizontal offset mapped to FOV
-      const bearingOffset = nx * HORIZONTAL_FOV; // degrees offset
-      const verticalOffset = ny * VERTICAL_FOV; // degrees
-
-      posterAnchor = {
-        bearing: (deviceHeading + bearingOffset + 360) % 360,
-        verticalAngle: verticalOffset + devicePitch, // approx
-        angularWidth: angularWidth,
-        angularHeight: angularHeight,
-        distance: 2.0, // assume 2 meters from camera to poster plane; used for scale
-        screenBox: vb // store for reference
+    // Hook events from AR.js / A-Frame to manage UI and hotspot taps
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const scene = document.querySelector('a-scene');
+      const marker = scene.querySelector('a-marker');
+      const hotspots = {
+        hs1: {title:'Info 1', desc:'Keterangan untuk titik 1'},
+        hs2: {title:'Info 2', desc:'Keterangan untuk titik 2'},
+        hs3: {title:'Info 3', desc:'Keterangan untuk titik 3'},
+        hs4: {title:'Info 4', desc:'Keterangan untuk titik 4'},
+        hs5: {title:'Info 5', desc:'Keterangan untuk titik 5'}
       };
 
-      // show feedback
-      posterBox.style.border='2px solid rgba(124,58,237,0.9)';
-      posterBox.style.boxShadow='0 10px 40px rgba(99,102,241,0.22)';
-      posterBox.querySelector('.poster-label').textContent = 'Poster ter-anchored ✓';
+      const markerStatus = document.getElementById('markerStatus');
+      const infoPanel = document.getElementById('infoPanel');
+      const infoTitle = document.getElementById('infoTitle');
+      const infoDesc = document.getElementById('infoDesc');
+      const closeInfo = document.getElementById('closeInfo');
 
-      // Start rendering hotspots as world-anchored
-      requestAnimationFrame(updateFrame);
-    });
+      closeInfo.addEventListener('click', ()=> infoPanel.style.display='none');
 
-    // --- Rendering loop: compute each hotspot world bearing+angle and decide screen position ---
-    function updateFrame(){
-      if(!posterAnchor) return;
-      // For each hotspot, compute its world bearing and vertical angle
-      const screenW = window.innerWidth, screenH = window.innerHeight;
-
-      const posterAngularWidth = posterAnchor.angularWidth;
-      const posterAngularHeight = posterAnchor.angularHeight;
-
-      hotspotModel.forEach(h => {
-        // local offsets relative to poster center, normalized [-0.5..0.5]
-        const localX = (h.x - 0.5);
-        const localY = (h.y - 0.5);
-
-        // hotspot's angular offsets from poster center
-        const hBearingOffset = localX * posterAngularWidth;
-        const hVerticalOffset = localY * posterAngularHeight;
-
-        // hotspot world angles
-        const worldBearing = (posterAnchor.bearing + hBearingOffset + 360) % 360;
-        const worldVertical = posterAnchor.verticalAngle + hVerticalOffset;
-
-        // relative bearing to device heading
-        let relative = (worldBearing - deviceHeading + 540) % 360 - 180; // now in range [-180,180]
-
-        // Only show if within horizontal FOV/2
-        const halfHFOV = HORIZONTAL_FOV/2;
-        const halfVFOV = VERTICAL_FOV/2;
-
-        const el = hotspotEls[h.id];
-
-        if(Math.abs(relative) > halfHFOV || Math.abs(worldVertical - devicePitch) > halfVFOV){
-          // hide offscreen
-          el.style.display='none';
-          return;
-        }
-
-        el.style.display='flex';
-
-        // map relative horizontal angle to screen X
-        const xPercent = 50 + (relative / halfHFOV) * 50; // 0..100
-        // vertical mapping uses difference in vertical angle
-        const vDiff = (worldVertical - devicePitch);
-        const yPercent = 50 + -(vDiff / halfVFOV) * 45; // invert: looking up decreases y
-
-        // Apply scale based on distance (posterAnchor.distance and small variance)
-        const dist = posterAnchor.distance;
-        const scale = 1 + Math.max(0, (0.8 - Math.min(0.8, Math.abs(relative)/halfHFOV))) * 0.6 - Math.min(0.5, dist/6);
-
-        el.style.left = `${xPercent}%`;
-        el.style.top = `${yPercent}%`;
-        el.style.transform = `translate(-50%,-50%) scale(${scale})`;
-
-        // size & color based on proximity to center
-        const intensity = 1 - (Math.abs(relative)/halfHFOV);
-        const bg = `rgba(${Math.round(255 - intensity*40)}, ${Math.round(255 - intensity*80)}, ${Math.round(255 - intensity*200)}, ${0.98})`;
-        // we set pill background separately
-        const pill = el.querySelector('.pill');
-        pill.style.background = `linear-gradient(180deg, rgba(255,255,255,0.95), rgba(230,245,255,0.9))`;
-
+      // Marker found / lost events
+      marker.addEventListener('markerFound', ()=>{
+        markerStatus.innerText = 'Poster terdeteksi';
+      });
+      marker.addEventListener('markerLost', ()=>{
+        markerStatus.innerText = '—';
+        infoPanel.style.display = 'none';
       });
 
-      requestAnimationFrame(updateFrame);
-    }
+      // Set up click/touch handlers on hotspot entities
+      Object.keys(hotspots).forEach(id=>{
+        const el = document.getElementById(id);
+        if(!el) return;
+        // Use raycaster via touch -- A-Frame will handle raycasting from camera screen tap
+        el.addEventListener('click', (evt)=>{
+          const data = hotspots[id];
+          infoTitle.innerText = data.title;
+          infoDesc.innerText = data.desc;
+          infoPanel.style.display = 'block';
+        });
 
-    function hideAllHotspots(){
-      Object.values(hotspotEls).forEach(el=> el.style.display='none');
-    }
+        // Add small label as child (billboard) for clarity
+        const label = document.createElement('a-entity');
+        label.setAttribute('text', `value: ${id.replace('hs','')}; align:center; color:#04204a; width:0.6`);
+        label.setAttribute('position', '0 0.06 0');
+        label.setAttribute('scale', '1 1 1');
+        // always face camera: by using look-at in a-frame we used look-at="#camera" in entities
+        el.appendChild(label);
+      });
 
-    // --- Initialize camera & UI ---
-    (async ()=>{
-      await startCamera();
+      // Optional: smoothing for marker pose (AR.js already filters, but you can lerp transforms for extra smoothness)
+      // Example: lerp position/rotation of hotspotsRoot towards marker's transform to reduce micro-jitter
+      const root = document.getElementById('hotspotsRoot');
+      let smoothing = true;
+      let lerpAlpha = 0.25; // lower = smoother but slower
 
-      // On load, hide hotspots until posterAnchor defined
-      hideAllHotspots();
+      // We will sample marker.object3D matrix each tick and apply smoothing
+      scene.addEventListener('renderstart', ()=>{
+        scene.renderer.setAnimationLoop(()=>{
+          if(!marker.object3D.visible) return;
+          if(!smoothing){ return; }
+          // target matrix
+          const target = marker.object3D;
+          // apply smoothing by interpolating position & quaternion
+          // get world position/quaternion
+          const worldPos = new THREE.Vector3();
+          const worldQuat = new THREE.Quaternion();
+          target.getWorldPosition(worldPos);
+          target.getWorldQuaternion(worldQuat);
 
-      // Inform user about permissions if necessary
-      if(!('DeviceOrientationEvent' in window)){
-        alert('Perangkat Anda tidak mendukung orientasi perangkat — pengalaman AR akan terbatas.');
-      } else {
-        // Some browsers require a user gesture to enable deviceorientation — try to request permission on iOS 13+
-        if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
-          DeviceOrientationEvent.requestPermission().catch(()=>{});
-        }
-      }
+          // get current
+          const curPos = root.object3D.position;
+          const curQuat = root.object3D.quaternion;
 
-      // Friendly touch to focus
-      video.addEventListener('touchstart', (e)=>{ e.preventDefault(); }, {passive:false});
+          // lerp
+          curPos.lerp(worldPos, lerpAlpha);
+          curQuat.slerp(worldQuat, lerpAlpha);
 
-    })();
+          // set root to identity relative to marker by applying inverse marker transform
+          // (we attach hotspots as children of marker in markup, so this smoothing approach is optional/advanced)
+        });
+      });
 
-    // Accessibility: prevent desktop use
-    if(window.innerWidth > 900){
-      // hide UI and show message
-      document.body.innerHTML = `<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#9fb7ff;padding:20px;text-align:center">Aplikasi ini dioptimalkan untuk perangkat mobile. Silakan buka di ponsel untuk pengalaman AR.</div>`;
-    }
-
+      // Tips printed to console
+      console.log('AR.js scene initialized. Use good lighting and ensure poster image has rich features. For best stability, create NFT descriptors for the poster and use <a-nft> element instead of pattern.');
+    });
   </script>
+
+  <!-- NOTES for deployment:
+       - Place a marker pattern at public/markers/poster.patt for the demo to run.
+       - For higher stability use NFT (image descriptors) and replace <a-marker type="pattern"> with <a-nft url="markers/poster">.
+       - For production consider WebXR (native AR) or ARCore/ARKit for 6DOF SLAM tracking — AR.js is a robust web-first option but not as robust
+         as platform AR for large movements and long-term anchors.
+  -->
 </body>
 </html>
