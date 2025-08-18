@@ -2,176 +2,247 @@
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>AR Web — 5 Informasi Futuristik</title>
-  <!-- A-Frame + AR.js -->
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AR Poster Placer — Poster 4:5 (No Marker)</title>
   <style>
-    body { margin:0; font-family: system-ui, -apple-system, Roboto, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    .hint { position:fixed; left:10px; top:10px; background:rgba(0,0,0,0.6); color:#fff; padding:8px 12px; border-radius:8px; z-index:999; font-size:14px }
-    .fallback { display:none; padding:16px; }
-    .card { background: rgba(255,255,255,0.95); border-radius:10px; padding:12px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
-    .title { font-weight:700; margin-bottom:6px }
-    .small { font-size:13px; color:#333 }
-    a{ color:#0b84ff }
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, system-ui, Arial}
+    #container{position:fixed;inset:0;background:#000}
+    #ar-button{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;padding:12px 18px;border-radius:10px;background:#0066ff;color:#fff;border:none;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+    #hint{position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.6);color:#fff;padding:8px 12px;border-radius:8px;font-size:14px}
+    #preview{position:fixed;right:12px;top:12px;background:#fff;padding:12px;border-radius:10px;max-width:320px;box-shadow:0 8px 20px rgba(0,0,0,0.12);color:#111}
+    canvas#posterCanvas{display:none}
+    #exitBtn{position:fixed;right:12px;bottom:20px;padding:8px 12px;border-radius:8px;background:#fff;border:none}
   </style>
 </head>
 <body>
-  <div class="hint">Arahkan kamera ke marker. (Marker image: https://iili.io/Fmi7QKg.jpg)</div>
-
-  <!-- Fallback view for desktop / preview -->
-  <div id="preview" class="fallback" style="display:block;">
-    <h3 style="margin:0 0 8px 0">Preview: Informasi Futuristik</h3>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
-      <div class="card" style="width:220px">
-        <div class="title">1. Kota Terapung</div>
-        <div class="small">Kota modular terapung yang menyesuaikan diri pada permukaan laut, lengkap dengan pertanian vertikal dan jaringan energi terbarukan.</div>
-      </div>
-      <div class="card" style="width:220px">
-        <div class="title">2. Transportasi Holografik</div>
-        <div class="small">Sistem transit berbasis rute holografis untuk navigasi pejalan kaki & drone yang meminimalkan kecelakaan dan kemacetan.</div>
-      </div>
-      <div class="card" style="width:220px">
-        <div class="title">3. Antarmuka Otak-Komputer</div>
-        <div class="small">Implan non-invasif yang memungkinkan interaksi digital langsung — membaca niat untuk mengetik, menelusur, dan mengontrol perangkat.</div>
-      </div>
-      <div class="card" style="width:220px">
-        <div class="title">4. Energi Fusion Mini</div>
-        <div class="small">Generator fusi skala kecil untuk komunitas kota, memberi listrik bersih dan aman tanpa emisi karbon.</div>
-      </div>
-      <div class="card" style="width:220px">
-        <div class="title">5. Ekosistem AI Kesehatan Pribadi</div>
-        <div class="small">Agen AI yang memantau biometrik real-time, memberikan pencegahan kesehatan proaktif dan perencanaan pengobatan personal.</div>
-      </div>
-    </div>
-    <p style="margin-top:12px;color:#555">Untuk pengalaman AR: download marker image dari <a href="https://iili.io/Fmi7QKg.jpg" target="_blank">https://iili.io/Fmi7QKg.jpg</a> dan konversi ke file <code>marker.patt</code> menggunakan <em>pattern-marker generator</em> (mis. tool AR.js 또는 generator online). Letakkan <code>marker.patt</code> di folder yang sama dengan file ini lalu buka file melalui server lokal (mis. <code>npx http-server</code> atau live-server) karena akses webcam biasanya dibatasi lewat <code>file://</code>.</p>
+  <div id="container"></div>
+  <div id="hint">AR tanpa marker — ketuk layar untuk menempatkan poster 4:5.</div>
+  <div id="preview">
+    <h4 style="margin:0 0 8px 0">Preview Poster (4:5)</h4>
+    <img id="previewImg" alt="poster preview" style="width:160px;height:200px;object-fit:cover;border-radius:6px;border:1px solid #eee;" />
+    <p style="margin:8px 0 0 0;font-size:13px;color:#444">Poster menampilkan 5 informasi futuristik. Ketuk <strong>Enter AR</strong> untuk menempatkannya di dunia nyata.</p>
   </div>
+  <button id="ar-button">Enter AR</button>
+  <button id="exitBtn" style="display:none">Exit AR</button>
 
-  <!-- A-Frame AR scene -->
-  <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;'>
+  <!-- hidden canvas used to create poster texture -->
+  <canvas id="posterCanvas" width="800" height="1000"></canvas>
 
-    <!-- NOTE: AR.js default pattern marker requires a .patt file (marker.patt).
-         Convert your marker image (https://iili.io/Fmi7QKg.jpg) to marker.patt and put it
-         next to this HTML file. If you already have marker.patt, uncomment the marker below.
-    -->
-
-    <!-- Example marker entity (uncomment after you have marker.patt in same folder) -->
-    <!-- <a-marker type="pattern" url="marker.patt">
-      <a-entity id="cards" position="0 0 0">
-        <!-- Five info cards arranged in semicircle above marker -->
-        <a-entity position="0 0.02 0">
-          <a-entity geometry="primitive: plane; height:0.25; width:0.6" material="color: #ffffff; opacity: 0.95" position="0 0.15 0" rotation="-90 0 0" ></a-entity>
-        </a-entity>
-      </a-entity>
-    </a-marker> -->
-
-    <!-- Simple alternative: use a flat plane that appears in front of camera when no marker.patt provided -> useful for testing -->
-    <a-entity id="virtual-info" visible="true" position="0 0 -1.5">
-      <!-- We'll render five small panels as 2D planes -->
-      <a-entity id="panelGroup" position="0 0 -1">
-        <!-- Card 1 -->
-        <a-plane position="-0.9 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card1Tex"></a-plane>
-        <!-- Card 2 -->
-        <a-plane position="-0.3 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card2Tex"></a-plane>
-        <!-- Card 3 -->
-        <a-plane position="0.3 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card3Tex"></a-plane>
-        <!-- Card 4 -->
-        <a-plane position="0.9 0.45 -2" rotation="0 0 0" width="0.7" height="0.38" material="shader: flat; src: #card4Tex"></a-plane>
-        <!-- Card 5 -->
-        <a-plane position="0  -0.12 -2" rotation="0 0 0" width="1.6" height="0.5" material="shader: flat; src: #card5Tex"></a-plane>
-      </a-entity>
-    </a-entity>
-
-    <!-- Textures for the fallback cards (generated from canvas below) -->
-    <a-assets>
-      <canvas id="card1" width="1024" height="512"></canvas>
-      <canvas id="card2" width="1024" height="512"></canvas>
-      <canvas id="card3" width="1024" height="512"></canvas>
-      <canvas id="card4" width="1024" height="512"></canvas>
-      <canvas id="card5" width="1400" height="512"></canvas>
-
-      <img id="markerImg" src="https://iili.io/Fmi7QKg.jpg" crossorigin="anonymous" />
-    </a-assets>
-
-    <a-entity camera></a-entity>
-  </a-scene>
-
+  <!-- Three.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
   <script>
-    // Draw the five cards onto canvases to use as textures in A-Frame fallback view
-    const cards = [
-      {id:'card1', title:'1. Kota Terapung', body:'Modular terapung dengan pertanian vertikal & energi terbarukan.'},
-      {id:'card2', title:'2. Transportasi Holografik', body:'Rute holografis untuk navigasi pejalan kaki & drone.'},
-      {id:'card3', title:'3. Antarmuka Otak-Komputer', body:'Interaksi non-invasif untuk kontrol perangkat & input teks.'},
-      {id:'card4', title:'4. Energi Fusion Mini', body:'Generator fusi skala kecil untuk listrik bersih lokal.'},
-      {id:'card5', title:'5. AI Kesehatan Pribadi', body:'Agen AI yang memantau biometrik real-time & pencegahan proaktif.'}
+    // --- Content for the poster (5 informasi futuristik) ---
+    const infos = [
+      {title: 'Kota Terapung', body: 'Kota modular terapung dengan pertanian vertikal & energi terbarukan.'},
+      {title: 'Transportasi Holografik', body: 'Rute holografis untuk navigasi pejalan kaki & drone.'},
+      {title: 'Antarmuka Otak-Komputer', body: 'Interaksi non-invasif untuk kontrol perangkat & input teks.'},
+      {title: 'Energi Fusi Mini', body: 'Generator fusi skala kecil memberi listrik bersih tanpa emisi.'},
+      {title: 'AI Kesehatan Pribadi', body: 'AI yang memantau biometrik real-time & pencegahan proaktif.'}
     ];
 
-    function drawCard(canvasId, title, body){
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
+    // Draw poster to canvas (aspect ratio 4:5 => 800x1000)
+    function drawPoster(){
+      const c = document.getElementById('posterCanvas');
+      const ctx = c.getContext('2d');
       // background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      // accent
-      ctx.fillStyle = '#0b84ff';
-      ctx.fillRect(0,0,20,canvas.height);
-      // title
-      ctx.fillStyle = '#111';
-      ctx.font = 'bold 48px sans-serif';
-      ctx.fillText(title, 40, 80);
-      // body
-      ctx.fillStyle = '#333';
-      ctx.font = '28px sans-serif';
-      wrapText(ctx, body, 40, 140, canvas.width - 80, 34);
+      ctx.fillStyle = '#0f1724';
+      ctx.fillRect(0,0,c.width,c.height);
+      // header
+      ctx.fillStyle = '#00d1ff';
+      ctx.fillRect(0,0,c.width,120);
+      ctx.fillStyle = '#021024';
+      ctx.font = 'bold 44px sans-serif';
+      ctx.fillText('5 Informasi Futuristik', 24, 78);
+
+      // draw each info block
+      const margin = 24;
+      const blockW = c.width - margin*2;
+      const blockH = (c.height - 160 - margin*4) / 5; // space for 5 blocks
+      ctx.font = 'bold 26px sans-serif';
+      ctx.textBaseline = 'top';
+      for (let i=0;i<infos.length;i++){
+        const x = margin;
+        const y = 140 + margin + i*(blockH + margin);
+        // block bg
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(x,y,blockW,blockH);
+        // accent bar
+        ctx.fillStyle = ['#ff7a18','#7b61ff','#00d1ff','#14b8a6','#f97316'][i%5];
+        ctx.fillRect(x, y, 8, blockH);
+        // title
+        ctx.fillStyle = '#fff';
+        ctx.font = '600 22px sans-serif';
+        ctx.fillText((i+1)+'. '+infos[i].title, x+16, y+10);
+        // body (wrap)
+        ctx.fillStyle = '#e6eef8';
+        ctx.font = '16px sans-serif';
+        wrapText(ctx, infos[i].body, x+16, y+40, blockW-32, 20);
+      }
     }
 
-    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight){
       const words = text.split(' ');
       let line = '';
-      for (let n = 0; n < words.length; n++) {
+      for (let n=0;n<words.length;n++){
         const testLine = line + words[n] + ' ';
         const metrics = ctx.measureText(testLine);
         const testWidth = metrics.width;
-        if (testWidth > maxWidth && n > 0) {
+        if (testWidth > maxWidth && n>0){
           ctx.fillText(line, x, y);
           line = words[n] + ' ';
           y += lineHeight;
-        }
-        else {
+        } else {
           line = testLine;
         }
       }
       ctx.fillText(line, x, y);
     }
 
-    cards.forEach((c, i) => {
-      drawCard(c.id, c.title, c.body);
+    drawPoster();
+    // set preview image
+    document.getElementById('previewImg').src = document.getElementById('posterCanvas').toDataURL();
+
+    // --- WebXR / Three.js AR placement ---
+    let renderer, scene, camera, xrSession, referenceSpace, hitTestSource, reticle;
+
+    const container = document.getElementById('container');
+    const arButton = document.getElementById('ar-button');
+    const exitBtn = document.getElementById('exitBtn');
+
+    function initThree(){
+      renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      renderer.xr.setReferenceSpaceType('local');
+      container.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+
+      // light
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
+
+      // reticle to show hit test
+      const geometry = new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI/2);
+      const material = new THREE.MeshBasicMaterial({color:0xffffff});
+      reticle = new THREE.Mesh(geometry, material);
+      reticle.matrixAutoUpdate = false;
+      reticle.visible = false;
+      scene.add(reticle);
+
+      window.addEventListener('resize', ()=>{
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function makePosterMesh(){
+      const canvas = document.getElementById('posterCanvas');
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+      const aspect = canvas.width / canvas.height; // 0.8 (4:5)
+      const width = 0.6; // meters
+      const height = width / aspect; // maintain 4:5
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const material = new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide, transparent:false});
+      const mesh = new THREE.Mesh(geometry, material);
+      // add thin frame
+      const frameMat = new THREE.MeshBasicMaterial({color:0x021024});
+      return mesh;
+    }
+
+    async function startXR(){
+      if (!navigator.xr) { alert('WebXR tidak tersedia pada perangkat ini.'); return; }
+      try{
+        xrSession = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test','local-floor'] });
+      }catch(e){ alert('Gagal memulai sesi AR: '+e.message); return; }
+
+      initThree();
+      renderer.xr.setSession(xrSession);
+
+      referenceSpace = await xrSession.requestReferenceSpace('local');
+
+      const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+      hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
+
+      // set DOM overlay so buttons visible? Not all platforms support dom-overlay; we skip to keep simple
+
+      xrSession.addEventListener('end', onSessionEnded);
+
+      // handle select (tap) to place poster
+      xrSession.addEventListener('select', (ev)=>{
+        if (reticle.visible){
+          const poster = makePosterMesh();
+          poster.position.setFromMatrixPosition(reticle.matrix);
+          // rotate to face camera (align with camera's y rotation)
+          const camPose = renderer.xr.getCamera(camera);
+          const camDir = new THREE.Vector3();
+          camPose.getWorldDirection(camDir);
+          const yaw = Math.atan2(camDir.x, camDir.z);
+          poster.rotation.set(0, yaw + Math.PI, 0);
+          scene.add(poster);
+        }
+      });
+
+      // enable an input source to receive select events (some devices require a transient input)
+      xrSession.addEventListener('inputsourceschange', ()=>{});
+
+      // render loop
+      const onXRFrame = (time, frame) => {
+        xrSession.requestAnimationFrame(onXRFrame);
+        const session = frame.session;
+        const pose = frame.getViewerPose(referenceSpace);
+        if (pose){
+          const hitTestResults = frame.getHitTestResults(hitTestSource);
+          if (hitTestResults.length > 0){
+            const hit = hitTestResults[0];
+            const hitPose = hit.getPose(referenceSpace);
+            reticle.visible = true;
+            reticle.matrix.fromArray(hitPose.transform.matrix);
+          } else {
+            reticle.visible = false;
+          }
+        }
+        renderer.render(scene, camera);
+      };
+
+      xrSession.requestAnimationFrame(onXRFrame);
+
+      arButton.style.display = 'none';
+      exitBtn.style.display = 'block';
+    }
+
+    function onSessionEnded(){
+      if (renderer && renderer.domElement){
+        container.removeChild(renderer.domElement);
+      }
+      if (xrSession){ xrSession = null; }
+      arButton.style.display = 'block';
+      exitBtn.style.display = 'none';
+    }
+
+    arButton.addEventListener('click', async ()=>{
+      await startXR();
     });
 
-    // connect canvases to A-Frame assets
-    setTimeout(()=>{
-      document.querySelector('#card1Tex')?.parentNode && null; // no-op to satisfy some linters
-      // create image elements from canvases and attach to assets for plane materials
-      for (let i=0;i<cards.length;i++){
-        const canvas = document.getElementById(cards[i].id);
-        const dataURL = canvas.toDataURL();
-        const img = document.createElement('img');
-        img.id = 'card' + (i+1) + 'Tex';
-        img.src = dataURL;
-        document.querySelector('a-assets').appendChild(img);
-      }
-      // hide preview hint if AR is available
-      const previewEl = document.getElementById('preview');
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        previewEl.style.display = 'none';
-      }
-    },300);
+    exitBtn.addEventListener('click', ()=>{
+      if (xrSession) xrSession.end();
+    });
 
-    // Helpful note for user: if you want these cards to appear anchored to the marker,
-    // replace the <a-entity id="virtual-info"> group with an <a-marker type="pattern" url="marker.patt"> and move the panels inside that marker element. 
-    // Example (uncomment in HTML):
-    // <a-marker type="pattern" url="marker.patt"> ...panels... </a-marker>
+    // Basic feature-detection: hide AR button if WebXR not available
+    (async function checkXR(){
+      if (navigator.xr && navigator.xr.isSessionSupported){
+        try{
+          const supported = await navigator.xr.isSessionSupported('immersive-ar');
+          if (!supported){ document.getElementById('hint').textContent = 'AR tidak didukung di perangkat ini. Preview tersedia.'; arButton.disabled=true; }
+        }catch(e){ console.warn(e); }
+      } else {
+        document.getElementById('hint').textContent = 'WebXR tidak tersedia. Gunakan perangkat mobile modern (Chrome/Edge) untuk AR.';
+        arButton.disabled = true;
+      }
+    })();
+
+    // polyfill note: some Android devices need WebXR enabled; this code assumes a proper WebXR-capable browser.
 
   </script>
 </body>
