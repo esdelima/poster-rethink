@@ -1,178 +1,246 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="id">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>MindARThree - Bullets 1-5</title>
-  <style>
-    html,body { margin:0; height:100%; background:#000; overflow:hidden; }
-    #ui { position: fixed; z-index: 50; left:12px; top:12px; display:flex; gap:8px; }
-    button { padding:8px 10px; border-radius:8px; border: none; background:#111827; color:#fff; cursor:pointer;}
-    #status { color:#fff; align-self:center; margin-left:8px; }
-  </style>
-  <!-- MindAR + three.js (MindAR bundle already includes three.js) -->
-  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Bullet Numbers - Poster 4:5</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 100;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
-  <div id="ui">
-    <button id="startBtn">Start AR</button>
-    <button id="stopBtn" disabled>Stop AR</button>
-    <div id="status">Ready</div>
-  </div>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <h2>Memuat AR Experience...</h2>
+        <p>Mohon tunggu sebentar</p>
+    </div>
+    
+    <div class="instructions">
+        <strong>📱 Cara Menggunakan AR:</strong><br>
+        1. Arahkan kamera ke poster Anda<br>
+        2. Pastikan poster terlihat jelas dan tidak terpotong<br>
+        3. Bullet numbers 1-5 akan muncul secara AR!
+    </div>
+    
+    <div class="status" id="status">
+        Mencari poster... Pastikan poster terlihat jelas di kamera
+    </div>
 
-  <div id="container"></div>
+    <a-scene
+        vr-mode-ui="enabled: false"
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        renderer="logarithmicDepthBuffer: true; precision: medium;"
+        embedded
+        gesture-detector
+        id="scene">
+        
+        <!-- Assets -->
+        <a-assets>
+            <!-- Bullet number materials -->
+            <a-mixin id="bullet-text" 
+                     text="font: roboto; align: center; width: 2000; color: #FF6B6B; shader: msdf"
+                     material="transparent: true; alphaTest: 0.1"
+                     animation__appear="property: scale; from: 0 0 0; to: 1.2 1.2 1.2; dur: 800; easing: easeOutBack"
+                     animation__float="property: position; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine">
+            </a-mixin>
+            
+            <a-mixin id="bullet-bg"
+                     geometry="primitive: circle; radius: 0.8"
+                     material="color: #4ECDC4; transparent: true; opacity: 0.9"
+                     animation__pulse="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine">
+            </a-mixin>
+        </a-assets>
 
-  <script>
-    // URL targetmu (yang kamu berikan)
-    const TARGET_URL = 'https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind';
+        <!-- AR Marker -->
+        <a-marker
+            type="pattern"
+            url="https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind"
+            id="marker"
+            registerevents>
+            
+            <!-- Bullet Number 1 -->
+            <a-entity position="-3 2 0">
+                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
+                <a-text mixin="bullet-text" 
+                        value="1" 
+                        position="0 0 0"
+                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 0">
+                </a-text>
+            </a-entity>
+            
+            <!-- Bullet Number 2 -->
+            <a-entity position="-1.5 1 0">
+                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
+                <a-text mixin="bullet-text" 
+                        value="2" 
+                        position="0 0 0"
+                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 400">
+                </a-text>
+            </a-entity>
+            
+            <!-- Bullet Number 3 -->
+            <a-entity position="0 0 0">
+                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
+                <a-text mixin="bullet-text" 
+                        value="3" 
+                        position="0 0 0"
+                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 800">
+                </a-text>
+            </a-entity>
+            
+            <!-- Bullet Number 4 -->
+            <a-entity position="1.5 1 0">
+                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
+                <a-text mixin="bullet-text" 
+                        value="4" 
+                        position="0 0 0"
+                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 1200">
+                </a-text>
+            </a-entity>
+            
+            <!-- Bullet Number 5 -->
+            <a-entity position="3 2 0">
+                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
+                <a-text mixin="bullet-text" 
+                        value="5" 
+                        position="0 0 0"
+                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 1600">
+                </a-text>
+            </a-entity>
+            
+            <!-- Decorative particles -->
+            <a-entity position="0 3 0">
+                <a-text value="✨ AR BULLETS ✨" 
+                        align="center" 
+                        color="#FFD93D" 
+                        scale="0.8 0.8 0.8"
+                        animation__glow="property: material.color; from: #FFD93D; to: #FF6B6B; dir: alternate; dur: 1000; loop: true">
+                </a-text>
+            </a-entity>
+        </a-marker>
 
-    let mindarThree = null;
-    let anchors = [];
-    let playing = false;
+        <!-- Camera -->
+        <a-entity camera look-controls-enabled="false" arjs-look-controls="smoothingFactor: 0.1"></a-entity>
+    </a-scene>
 
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const statusEl = document.getElementById('status');
-
-    function createNumberCanvas(n) {
-      const w = 512, h = 256;
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d');
-      // background white
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0,0,w,h);
-      // big number
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 200px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(n), w/2, h/2);
-      return c;
-    }
-
-    async function initMindAR() {
-      // ensure MINDAR namespace exists
-      if (!window.MINDAR || !window.MINDAR.IMAGE) {
-        alert('MindAR library not loaded!');
-        throw new Error('MindAR not present');
-      }
-
-      // create MindARThree instance
-      mindarThree = new window.MINDAR.IMAGE.MindARThree({
-        container: document.body,
-        imageTargetSrc: TARGET_URL,
-        maxTrack: 1,
-        // optionally change other params
-      });
-
-      const {renderer, scene, camera} = mindarThree;
-
-      // add light
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      scene.add(light);
-
-      // create anchor for target index 0
-      const anchor = mindarThree.addAnchor(0);
-      anchors.push(anchor);
-
-      // Poster aspect: MindAR maps image to width=1 unit by default.
-      // We'll create 5 small planes positioned relative to poster center.
-      const bulletPositions = [
-        [-0.35,  0.45, 0.01],
-        [-0.35,  0.15, 0.01],
-        [-0.35, -0.15, 0.01],
-        [ 0.25,  0.20, 0.01],
-        [ 0.25, -0.20, 0.01],
-      ];
-
-      bulletPositions.forEach((pos, i) => {
-        const canvas = createNumberCanvas(i+1);
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.needsUpdate = true;
-
-        // plane geometry roughly width 0.18 x height 0.12 (same as A-Frame example)
-        const geom = new THREE.PlaneGeometry(0.18, 0.12);
-        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: false });
-        const mesh = new THREE.Mesh(geom, mat);
-        mesh.position.set(pos[0], pos[1], pos[2]);
-        mesh.visible = false; // hide initially
-        anchor.group.add(mesh);
-
-        // add click interaction using raycaster later
-        mesh.userData.bulletIndex = i;
-      });
-
-      // events: when target found/lost, show/hide bullets
-      anchor.onTargetFound = () => {
-        statusEl.innerText = 'Target found';
-        // show first bullet by default
-        anchor.group.children.forEach((m, i) => {
-          m.visible = (i === 0);
-        });
-      };
-      anchor.onTargetLost = () => {
-        statusEl.innerText = 'Target lost';
-        anchor.group.children.forEach(m => m.visible = false);
-      };
-
-      // start rendering loop
-      await mindarThree.start();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      statusEl.innerText = 'AR started — point camera to poster';
-      stopBtn.disabled = false;
-      startBtn.disabled = true;
-
-      // animation loop: mindarThree provides update via renderer.setAnimationLoop
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
-
-      // Add simple tap/click to cycle bullets (works on mobile: listen for touch)
-      window.addEventListener('click', (ev) => {
-        // do a raycast from screen center (or use touch coords)
-        // we'll just cycle bullets on click
-        const group = anchor.group;
-        if (!group) return;
-        const nextVisibleIndex = (group.children.findIndex(c=>c.visible) + 1) % group.children.length;
-        group.children.forEach((m,i)=> m.visible = (i===nextVisibleIndex));
-      });
-    }
-
-    startBtn.addEventListener('click', async () => {
-      statusEl.innerText = 'Starting AR...';
-      try {
-        // test fetch targets.mind first to get clearer error
-        await fetch(TARGET_URL).then(r => {
-          if (!r.ok) throw new Error('targets.mind fetch failed: ' + r.status);
+    <script>
+        // Loading screen management
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').classList.add('hidden');
+            }, 2000);
         });
 
-        await initMindAR();
-      } catch (err) {
-        console.error(err);
-        alert('Gagal start AR: ' + (err && err.message ? err.message : err));
-        statusEl.innerText = 'Start failed — lihat console';
-      }
-    });
+        // AR marker detection
+        const marker = document.querySelector('#marker');
+        const status = document.getElementById('status');
+        
+        marker.addEventListener('markerFound', function() {
+            status.innerHTML = '🎯 Poster terdeteksi! Bullet numbers sedang muncul...';
+            status.style.background = 'rgba(76, 175, 80, 0.8)';
+            
+            // Add sound effect simulation
+            console.log('AR Marker Found - Bullets Appearing!');
+        });
+        
+        marker.addEventListener('markerLost', function() {
+            status.innerHTML = 'Mencari poster... Arahkan kamera ke poster Anda';
+            status.style.background = 'rgba(0,0,0,0.8)';
+        });
 
-    stopBtn.addEventListener('click', async () => {
-      statusEl.innerText = 'Stopping AR...';
-      if (mindarThree) {
-        try {
-          await mindarThree.stop();
-          mindarThree.renderer.setAnimationLoop(null);
-        } catch(e) { console.warn(e); }
-        mindarThree = null;
-      }
-      stopBtn.disabled = true;
-      startBtn.disabled = false;
-      statusEl.innerText = 'Stopped';
-    });
+        // Handle camera permissions
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                console.log('Camera access granted');
+            })
+            .catch(function(err) {
+                status.innerHTML = '❌ Izin kamera diperlukan untuk AR. Silakan refresh dan izinkan akses kamera.';
+                status.style.background = 'rgba(244, 67, 54, 0.8)';
+            });
 
-    // Helpful console hint:
-    console.log('Ready. If A-Frame approach fails, this MindARThree fallback should work.');
-  </script>
-
-  <!-- Note: MindAR build includes THREE.js internally, so we don't need to include three separately. -->
-</body>
+        // Performance optimization
+        document.addEventListener('DOMContentLoaded', function() {
+            const scene = document.querySelector('a-scene');
+            if (scene.hasLoaded) {
+                console.log('AR Scene loaded successfully');
+            } else {
+                scene.addEventListener('loaded', function() {
+                    console.log('AR Scene loaded successfully');
+                });
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711c505d2aaf9e6',t:'MTc1NTUyMzg2Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
