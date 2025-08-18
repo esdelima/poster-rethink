@@ -153,10 +153,27 @@
             height: 120px;
         }
 
+        .ar-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 350px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .ar-container.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .callout {
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             background: linear-gradient(45deg, #00ffff, #0080ff);
             border-radius: 50%;
             cursor: pointer;
@@ -165,35 +182,61 @@
             justify-content: center;
             color: white;
             font-weight: bold;
-            font-size: 18px;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+            font-size: 14px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
             animation: float 3s ease-in-out infinite;
-            opacity: 0;
-            transform: scale(0);
-            transition: all 0.4s ease;
-            pointer-events: auto;
-        }
-
-        .callout.show {
-            opacity: 1;
-            transform: scale(1);
+            z-index: 10;
         }
 
         .callout:hover {
             transform: scale(1.2);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
         }
 
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-5px); }
         }
 
-        .callout-1 { top: 15%; left: 20%; animation-delay: 0s; }
-        .callout-2 { top: 25%; right: 15%; animation-delay: 0.5s; }
-        .callout-3 { bottom: 30%; left: 10%; animation-delay: 1s; }
-        .callout-4 { bottom: 20%; right: 20%; animation-delay: 1.5s; }
-        .callout-5 { top: 60%; left: 50%; transform: translateX(-50%); animation-delay: 2s; }
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #00ffff, rgba(0, 255, 255, 0.3));
+            transform-origin: left center;
+            opacity: 0.8;
+            z-index: 5;
+        }
+
+        .poster-placeholder {
+            position: absolute;
+            width: 60px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 128, 255, 0.2));
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00ffff;
+            font-size: 10px;
+            text-align: center;
+            z-index: 8;
+        }
+
+        /* Posisi callouts relatif terhadap area terkunci */
+        .callout-1 { top: -40px; left: -60px; animation-delay: 0s; }
+        .callout-2 { top: 20px; right: -80px; animation-delay: 0.5s; }
+        .callout-3 { bottom: 40px; left: -70px; animation-delay: 1s; }
+        .callout-4 { bottom: 10px; right: -90px; animation-delay: 1.5s; }
+        .callout-5 { top: 180px; left: 50%; transform: translateX(-50%); animation-delay: 2s; }
+
+        /* Posisi poster placeholders */
+        .poster-1 { top: -120px; left: -120px; }
+        .poster-2 { top: -20px; right: -160px; }
+        .poster-3 { bottom: 0px; left: -150px; }
+        .poster-4 { bottom: -30px; right: -170px; }
+        .poster-5 { top: 240px; left: 50%; transform: translateX(-50%); }
 
         .popup-image {
             position: absolute;
@@ -304,11 +347,29 @@
             <div class="glass-panel glass-top" id="glassTop"></div>
             <div class="glass-panel glass-bottom" id="glassBottom"></div>
 
-            <div class="callout callout-1" id="callout1">1</div>
-            <div class="callout callout-2" id="callout2">2</div>
-            <div class="callout callout-3" id="callout3">3</div>
-            <div class="callout callout-4" id="callout4">4</div>
-            <div class="callout callout-5" id="callout5">5</div>
+            <!-- AR Container - posisi tetap setelah dikunci -->
+            <div class="ar-container" id="arContainer">
+                <!-- Callouts -->
+                <div class="callout callout-1" id="callout1">1</div>
+                <div class="callout callout-2" id="callout2">2</div>
+                <div class="callout callout-3" id="callout3">3</div>
+                <div class="callout callout-4" id="callout4">4</div>
+                <div class="callout callout-5" id="callout5">5</div>
+
+                <!-- Connection Lines -->
+                <div class="connection-line" id="line1"></div>
+                <div class="connection-line" id="line2"></div>
+                <div class="connection-line" id="line3"></div>
+                <div class="connection-line" id="line4"></div>
+                <div class="connection-line" id="line5"></div>
+
+                <!-- Poster Placeholders -->
+                <div class="poster-placeholder poster-1" id="poster1">Poster<br>1</div>
+                <div class="poster-placeholder poster-2" id="poster2">Poster<br>2</div>
+                <div class="poster-placeholder poster-3" id="poster3">Poster<br>3</div>
+                <div class="poster-placeholder poster-4" id="poster4">Poster<br>4</div>
+                <div class="poster-placeholder poster-5" id="poster5">Poster<br>5</div>
+            </div>
 
             <div class="controls">
                 <button class="btn" id="confirmBtn">Konfirmasi Area</button>
@@ -364,6 +425,7 @@
         function lockArea() {
             isLocked = true;
             const scanArea = document.getElementById('scanArea');
+            const arContainer = document.getElementById('arContainer');
             const status = document.getElementById('status');
             const confirmBtn = document.getElementById('confirmBtn');
             const resetBtn = document.getElementById('resetBtn');
@@ -388,25 +450,64 @@
                 document.getElementById('glassBottom').classList.add('show');
             }, 800);
 
-            // Tampilkan callouts
+            // Tampilkan AR container dengan objek-objek AR
             setTimeout(() => {
-                for (let i = 1; i <= 5; i++) {
-                    setTimeout(() => {
-                        document.getElementById(`callout${i}`).classList.add('show');
-                    }, i * 300);
-                }
+                arContainer.classList.add('show');
+                createConnectionLines();
             }, 1000);
+        }
+
+        function createConnectionLines() {
+            const connections = [
+                { callout: 1, poster: 1, angle: 45 },
+                { callout: 2, poster: 2, angle: 0 },
+                { callout: 3, poster: 3, angle: 30 },
+                { callout: 4, poster: 4, angle: -15 },
+                { callout: 5, poster: 5, angle: 90 }
+            ];
+
+            connections.forEach((conn, index) => {
+                setTimeout(() => {
+                    const line = document.getElementById(`line${conn.callout}`);
+                    const callout = document.getElementById(`callout${conn.callout}`);
+                    const poster = document.getElementById(`poster${conn.poster}`);
+                    
+                    // Hitung posisi dan panjang garis
+                    const calloutRect = callout.getBoundingClientRect();
+                    const posterRect = poster.getBoundingClientRect();
+                    const containerRect = document.getElementById('arContainer').getBoundingClientRect();
+                    
+                    const calloutX = callout.offsetLeft + 15; // tengah callout
+                    const calloutY = callout.offsetTop + 15;
+                    const posterX = poster.offsetLeft + 30; // tengah poster
+                    const posterY = poster.offsetTop + 40;
+                    
+                    const deltaX = posterX - calloutX;
+                    const deltaY = posterY - calloutY;
+                    const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+                    
+                    // Set posisi dan rotasi garis
+                    line.style.left = calloutX + 'px';
+                    line.style.top = calloutY + 'px';
+                    line.style.width = length + 'px';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    line.style.opacity = '1';
+                }, index * 200);
+            });
         }
 
         function resetAR() {
             isLocked = false;
             const scanArea = document.getElementById('scanArea');
+            const arContainer = document.getElementById('arContainer');
             const status = document.getElementById('status');
             const confirmBtn = document.getElementById('confirmBtn');
             const resetBtn = document.getElementById('resetBtn');
 
             // Reset UI
             scanArea.classList.remove('locked');
+            arContainer.classList.remove('show');
             status.textContent = 'Posisikan area scan pada objek';
             confirmBtn.disabled = false;
             resetBtn.disabled = true;
@@ -416,9 +517,10 @@
                 panel.classList.remove('show');
             });
 
-            // Sembunyikan callouts
-            document.querySelectorAll('.callout').forEach(callout => {
-                callout.classList.remove('show');
+            // Reset connection lines
+            document.querySelectorAll('.connection-line').forEach(line => {
+                line.style.opacity = '0';
+                line.style.width = '0px';
             });
 
             // Tutup popup jika ada
@@ -463,5 +565,5 @@
         // Inisialisasi
         initCamera();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97109ca3e7c691bd',t:'MTc1NTUxMTcyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9710b7b3d5024095',t:'MTc1NTUxMjgzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
