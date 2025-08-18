@@ -1,569 +1,275 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Futuristik</title>
+    <title>NeonAR Poster Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        /* Glass Morphism Design */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #000;
+            margin: 0;
+            background: linear-gradient(135deg, rgba(20,30,48,0.9) 0%, rgba(36,59,85,0.9) 100%);
+            font-family: 'Segoe UI', system-ui;
             overflow: hidden;
-            height: 100vh;
+            color: white;
         }
-
-        #videoContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .scan-area {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 280px;
-            height: 350px;
-            border: 2px solid #00ffff;
-            border-radius: 20px;
-            background: rgba(0, 255, 255, 0.1);
-            backdrop-filter: blur(2px);
-            transition: all 0.5s ease;
-            animation: pulse 2s infinite;
-        }
-
-        .scan-area.locked {
-            border-color: #00ff00;
-            background: rgba(0, 255, 0, 0.1);
-            animation: none;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
-            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.8); }
-        }
-
-        .corner {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border: 3px solid #00ffff;
-        }
-
-        .corner.top-left {
-            top: -3px;
-            left: -3px;
-            border-right: none;
-            border-bottom: none;
-            border-radius: 20px 0 0 0;
-        }
-
-        .corner.top-right {
-            top: -3px;
-            right: -3px;
-            border-left: none;
-            border-bottom: none;
-            border-radius: 0 20px 0 0;
-        }
-
-        .corner.bottom-left {
-            bottom: -3px;
-            left: -3px;
-            border-right: none;
-            border-top: none;
-            border-radius: 0 0 0 20px;
-        }
-
-        .corner.bottom-right {
-            bottom: -3px;
-            right: -3px;
-            border-left: none;
-            border-top: none;
-            border-radius: 0 0 20px 0;
-        }
-
-        .locked .corner {
-            border-color: #00ff00;
-        }
-
+        
         .glass-panel {
-            position: absolute;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            opacity: 0;
-            transform: scale(0.8);
-            transition: all 0.6s ease;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }
 
-        .glass-panel.show {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .glass-left {
-            top: 20%;
-            left: 5%;
-            width: 200px;
-            height: 60%;
-        }
-
-        .glass-right {
-            top: 20%;
-            right: 5%;
-            width: 200px;
-            height: 60%;
-        }
-
-        .glass-top {
-            top: 5%;
-            left: 25%;
-            width: 50%;
-            height: 120px;
-        }
-
-        .glass-bottom {
-            bottom: 5%;
-            left: 25%;
-            width: 50%;
-            height: 120px;
-        }
-
-        .ar-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 280px;
-            height: 350px;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-
-        .ar-container.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .callout {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: linear-gradient(45deg, #00ffff, #0080ff);
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
-            animation: float 3s ease-in-out infinite;
-            z-index: 10;
-        }
-
-        .callout:hover {
-            transform: scale(1.2);
-            box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .connection-line {
-            position: absolute;
-            height: 2px;
-            background: linear-gradient(90deg, #00ffff, rgba(0, 255, 255, 0.3));
-            transform-origin: left center;
-            opacity: 0.8;
-            z-index: 5;
-        }
-
-        .poster-placeholder {
-            position: absolute;
-            width: 60px;
-            height: 80px;
-            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 128, 255, 0.2));
-            border: 2px solid #00ffff;
-            border-radius: 8px;
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #00ffff;
-            font-size: 10px;
-            text-align: center;
-            z-index: 8;
-        }
-
-        /* Posisi callouts relatif terhadap area terkunci */
-        .callout-1 { top: -40px; left: -60px; animation-delay: 0s; }
-        .callout-2 { top: 20px; right: -80px; animation-delay: 0.5s; }
-        .callout-3 { bottom: 40px; left: -70px; animation-delay: 1s; }
-        .callout-4 { bottom: 10px; right: -90px; animation-delay: 1.5s; }
-        .callout-5 { top: 180px; left: 50%; transform: translateX(-50%); animation-delay: 2s; }
-
-        /* Posisi poster placeholders */
-        .poster-1 { top: -120px; left: -120px; }
-        .poster-2 { top: -20px; right: -160px; }
-        .poster-3 { bottom: 0px; left: -150px; }
-        .poster-4 { bottom: -30px; right: -170px; }
-        .poster-5 { top: 240px; left: 50%; transform: translateX(-50%); }
-
-        .popup-image {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            max-width: 300px;
-            max-height: 300px;
-            border-radius: 15px;
-            box-shadow: 0 0 50px rgba(0, 255, 255, 0.8);
-            border: 2px solid #00ffff;
-            opacity: 0;
-            transition: all 0.5s ease;
-            z-index: 1000;
-            pointer-events: auto;
-        }
-
-        .popup-image.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        .controls {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 20px;
+        .ar-hud {
+            position: fixed;
+            top: 20px;
+            left: 0;
+            right: 0;
+            margin: auto;
+            width: 90%;
+            padding: 15px;
             z-index: 100;
-            pointer-events: auto;
         }
 
-        .btn {
-            padding: 12px 24px;
-            background: linear-gradient(45deg, #00ffff, #0080ff);
-            border: none;
-            border-radius: 25px;
-            color: white;
+        .point-indicator {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 255, 255, 0.7);
+            box-shadow: 0 0 15px cyan;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 25px rgba(0, 255, 255, 0.6);
+        .point-indicator:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px cyan;
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .status {
-            position: absolute;
-            top: 30px;
+        .info-card {
+            position: fixed;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            color: #00ffff;
-            font-size: 18px;
-            font-weight: bold;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
-            background: rgba(255, 0, 0, 0.8);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
+            width: 80%;
+            max-width: 500px;
+            padding: 20px;
             display: none;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
         }
 
-        .popup-image.show .close-btn {
-            display: flex;
+        .calibration-frame {
+            position: absolute;
+            border: 2px dashed rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            z-index: 50;
         }
     </style>
 </head>
 <body>
-    <div id="videoContainer">
-        <video id="video" autoplay muted playsinline></video>
-        
-        <div id="overlay">
-            <div class="status" id="status">Posisikan area scan pada objek</div>
-            
-            <div class="scan-area" id="scanArea">
-                <div class="corner top-left"></div>
-                <div class="corner top-right"></div>
-                <div class="corner bottom-left"></div>
-                <div class="corner bottom-right"></div>
-            </div>
+    <!-- Calibration UI -->
+    <div id="calibration-ui" class="glass-panel ar-hud">
+        <h2 style="text-align: center; margin-top: 0;">POSTER CALIBRATION</h2>
+        <p>Frame the poster by dragging the corners</p>
+        <div id="calibration-frame" class="calibration-frame"></div>
+        <button id="confirm-btn" style="display: block; margin: 20px auto; padding: 10px 25px; background: linear-gradient(90deg, #00d2ff 0%, #3a47d5 100%); border: none; border-radius: 50px; color: white; font-weight: bold;">CONFIRM</button>
+    </div>
 
-            <div class="glass-panel glass-left" id="glassLeft"></div>
-            <div class="glass-panel glass-right" id="glassRight"></div>
-            <div class="glass-panel glass-top" id="glassTop"></div>
-            <div class="glass-panel glass-bottom" id="glassBottom"></div>
+    <!-- AR Scene -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" id="ar-scene" style="display: none;">
+        <a-camera gps-camera rotation-reader></a-camera>
+        <!-- Dynamic content will be added here -->
+    </a-scene>
 
-            <!-- AR Container - posisi tetap setelah dikunci -->
-            <div class="ar-container" id="arContainer">
-                <!-- Callouts -->
-                <div class="callout callout-1" id="callout1">1</div>
-                <div class="callout callout-2" id="callout2">2</div>
-                <div class="callout callout-3" id="callout3">3</div>
-                <div class="callout callout-4" id="callout4">4</div>
-                <div class="callout callout-5" id="callout5">5</div>
-
-                <!-- Connection Lines -->
-                <div class="connection-line" id="line1"></div>
-                <div class="connection-line" id="line2"></div>
-                <div class="connection-line" id="line3"></div>
-                <div class="connection-line" id="line4"></div>
-                <div class="connection-line" id="line5"></div>
-
-                <!-- Poster Placeholders -->
-                <div class="poster-placeholder poster-1" id="poster1">Poster<br>1</div>
-                <div class="poster-placeholder poster-2" id="poster2">Poster<br>2</div>
-                <div class="poster-placeholder poster-3" id="poster3">Poster<br>3</div>
-                <div class="poster-placeholder poster-4" id="poster4">Poster<br>4</div>
-                <div class="poster-placeholder poster-5" id="poster5">Poster<br>5</div>
-            </div>
-
-            <div class="controls">
-                <button class="btn" id="confirmBtn">Konfirmasi Area</button>
-                <button class="btn" id="resetBtn" disabled>Reset</button>
+    <!-- Info Points HUD -->
+    <div id="ar-hud" style="display: none;">
+        <div class="glass-panel ar-hud">
+            <h2 style="text-align: center; margin-top: 0;">POSTER INFO POINTS</h2>
+            <div style="display: flex; justify-content: space-around; margin-top: 15px;">
+                <div class="point-indicator" data-point="1">1</div>
+                <div class="point-indicator" data-point="2">2</div>
+                <div class="point-indicator" data-point="3">3</div>
+                <div class="point-indicator" data-point="4">4</div>
+                <div class="point-indicator" data-point="5">5</div>
             </div>
         </div>
+    </div>
 
-        <img class="popup-image" id="popupImage" src="" alt="AR Content">
-        <button class="close-btn" id="closeBtn" onclick="closePopup()">×</button>
+    <!-- Info Card -->
+    <div id="info-card" class="glass-panel info-card">
+        <h3 id="info-title" style="margin-top: 0;">POINT 1</h3>
+        <p id="info-content">Loading information...</p>
+        <button id="close-btn" style="float: right; background: transparent; border: 1px solid white; color: white; padding: 5px 15px; border-radius: 20px;">CLOSE</button>
     </div>
 
     <script>
-        let isLocked = false;
-        let currentPopup = null;
-        
-        const images = [
-            'https://iili.io/FmPOlgR.png',
-            'https://iili.io/FmPOc0v.png',
-            'https://iili.io/FmPO7sa.png',
-            'https://iili.io/FmPO5Wg.png',
-            'https://iili.io/FmPO1Jp.png'
-        ];
+        // Config
+        const infoPoints = {
+            1: { title: "Quantum Computing", content: "Next-gen processors using qubits for parallel computation" },
+            2: { title: "Neural Networks", content: "AI systems mimicking human brain neurons" },
+            3: { title: "Space Tourism", content: "Commercial flights to low Earth orbit by 2025" },
+            4: { title: "CRISPR Tech", content: "Gene editing with 99% precision in clinical trials" },
+            5: { title: "Metaverse", content: "Persistent 3D virtual spaces for work and social" }
+        };
 
-        // Inisialisasi kamera
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+        // State
+        let posterCorners = [];
+        let isCalibrating = true;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            const calibrationFrame = document.getElementById('calibration-frame');
+            const confirmBtn = document.getElementById('confirm-btn');
+            
+            // Hand Tracking Calibration
+            initHandTracking().then(() => {
+                console.log("Hand tracking ready");
+            });
+
+            // Manual Calibration Fallback
+            document.addEventListener('click', (e) => {
+                if (!isCalibrating) return;
+                
+                if (posterCorners.length < 4) {
+                    posterCorners.push({ x: e.clientX, y: e.clientY });
+                    updateCalibrationFrame();
+                    
+                    if (posterCorners.length === 4) {
+                        confirmBtn.style.display = 'block';
                     }
-                });
-                document.getElementById('video').srcObject = stream;
-            } catch (err) {
-                console.error('Error accessing camera:', err);
-                document.getElementById('status').textContent = 'Error: Tidak dapat mengakses kamera';
-            }
-        }
-
-        // Konfirmasi area
-        document.getElementById('confirmBtn').addEventListener('click', function() {
-            if (!isLocked) {
-                lockArea();
-            }
-        });
-
-        // Reset
-        document.getElementById('resetBtn').addEventListener('click', function() {
-            resetAR();
-        });
-
-        function lockArea() {
-            isLocked = true;
-            const scanArea = document.getElementById('scanArea');
-            const arContainer = document.getElementById('arContainer');
-            const status = document.getElementById('status');
-            const confirmBtn = document.getElementById('confirmBtn');
-            const resetBtn = document.getElementById('resetBtn');
-
-            // Update UI
-            scanArea.classList.add('locked');
-            status.textContent = 'Area terkunci - AR aktif!';
-            confirmBtn.disabled = true;
-            resetBtn.disabled = false;
-
-            // Tampilkan glass panels
-            setTimeout(() => {
-                document.getElementById('glassLeft').classList.add('show');
-            }, 200);
-            setTimeout(() => {
-                document.getElementById('glassRight').classList.add('show');
-            }, 400);
-            setTimeout(() => {
-                document.getElementById('glassTop').classList.add('show');
-            }, 600);
-            setTimeout(() => {
-                document.getElementById('glassBottom').classList.add('show');
-            }, 800);
-
-            // Tampilkan AR container dengan objek-objek AR
-            setTimeout(() => {
-                arContainer.classList.add('show');
-                createConnectionLines();
-            }, 1000);
-        }
-
-        function createConnectionLines() {
-            const connections = [
-                { callout: 1, poster: 1, angle: 45 },
-                { callout: 2, poster: 2, angle: 0 },
-                { callout: 3, poster: 3, angle: 30 },
-                { callout: 4, poster: 4, angle: -15 },
-                { callout: 5, poster: 5, angle: 90 }
-            ];
-
-            connections.forEach((conn, index) => {
-                setTimeout(() => {
-                    const line = document.getElementById(`line${conn.callout}`);
-                    const callout = document.getElementById(`callout${conn.callout}`);
-                    const poster = document.getElementById(`poster${conn.poster}`);
-                    
-                    // Hitung posisi dan panjang garis
-                    const calloutRect = callout.getBoundingClientRect();
-                    const posterRect = poster.getBoundingClientRect();
-                    const containerRect = document.getElementById('arContainer').getBoundingClientRect();
-                    
-                    const calloutX = callout.offsetLeft + 15; // tengah callout
-                    const calloutY = callout.offsetTop + 15;
-                    const posterX = poster.offsetLeft + 30; // tengah poster
-                    const posterY = poster.offsetTop + 40;
-                    
-                    const deltaX = posterX - calloutX;
-                    const deltaY = posterY - calloutY;
-                    const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                    const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-                    
-                    // Set posisi dan rotasi garis
-                    line.style.left = calloutX + 'px';
-                    line.style.top = calloutY + 'px';
-                    line.style.width = length + 'px';
-                    line.style.transform = `rotate(${angle}deg)`;
-                    line.style.opacity = '1';
-                }, index * 200);
-            });
-        }
-
-        function resetAR() {
-            isLocked = false;
-            const scanArea = document.getElementById('scanArea');
-            const arContainer = document.getElementById('arContainer');
-            const status = document.getElementById('status');
-            const confirmBtn = document.getElementById('confirmBtn');
-            const resetBtn = document.getElementById('resetBtn');
-
-            // Reset UI
-            scanArea.classList.remove('locked');
-            arContainer.classList.remove('show');
-            status.textContent = 'Posisikan area scan pada objek';
-            confirmBtn.disabled = false;
-            resetBtn.disabled = true;
-
-            // Sembunyikan glass panels
-            document.querySelectorAll('.glass-panel').forEach(panel => {
-                panel.classList.remove('show');
-            });
-
-            // Reset connection lines
-            document.querySelectorAll('.connection-line').forEach(line => {
-                line.style.opacity = '0';
-                line.style.width = '0px';
-            });
-
-            // Tutup popup jika ada
-            closePopup();
-        }
-
-        // Event listeners untuk callouts
-        for (let i = 1; i <= 5; i++) {
-            document.getElementById(`callout${i}`).addEventListener('click', function() {
-                if (isLocked) {
-                    showPopup(images[i-1]);
                 }
             });
-        }
 
-        function showPopup(imageSrc) {
-            const popup = document.getElementById('popupImage');
-            const closeBtn = document.getElementById('closeBtn');
-            
-            popup.src = imageSrc;
-            popup.classList.add('show');
-            closeBtn.style.display = 'flex';
-            currentPopup = popup;
-        }
+            confirmBtn.addEventListener('click', () => {
+                isCalibrating = false;
+                document.getElementById('calibration-ui').style.display = 'none';
+                document.getElementById('ar-scene').style.display = 'block';
+                document.getElementById('ar-hud').style.display = 'block';
+                
+                // Calculate poster aspect ratio and position
+                const posterRect = calculatePosterRect();
+                initARPoints(posterRect);
+            });
 
-        function closePopup() {
-            const popup = document.getElementById('popupImage');
-            const closeBtn = document.getElementById('closeBtn');
-            
-            popup.classList.remove('show');
-            closeBtn.style.display = 'none';
-            currentPopup = null;
-        }
+            // Info Point Interactions
+            document.querySelectorAll('.point-indicator').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const pointNum = btn.getAttribute('data-point');
+                    showInfoCard(pointNum);
+                });
+            });
 
-        // Tutup popup saat klik di luar gambar
-        document.addEventListener('click', function(e) {
-            if (currentPopup && !currentPopup.contains(e.target) && !e.target.classList.contains('callout')) {
-                closePopup();
-            }
+            document.getElementById('close-btn').addEventListener('click', () => {
+                document.getElementById('info-card').style.display = 'none';
+            });
         });
 
-        // Inisialisasi
-        initCamera();
+        // Core Functions
+        function updateCalibrationFrame() {
+            if (posterCorners.length < 2) return;
+            
+            const frame = document.getElementById('calibration-frame');
+            const minX = Math.min(...posterCorners.map(p => p.x));
+            const maxX = Math.max(...posterCorners.map(p => p.x));
+            const minY = Math.min(...posterCorners.map(p => p.y));
+            const maxY = Math.max(...posterCorners.map(p => p.y));
+            
+            frame.style.left = `${minX}px`;
+            frame.style.top = `${minY}px`;
+            frame.style.width = `${maxX - minX}px`;
+            frame.style.height = `${maxY - minY}px`;
+        }
+
+        function calculatePosterRect() {
+            return {
+                x: posterCorners[0].x,
+                y: posterCorners[0].y,
+                width: posterCorners[2].x - posterCorners[0].x,
+                height: posterCorners[2].y - posterCorners[0].y,
+                aspectRatio: (posterCorners[2].x - posterCorners[0].x) / (posterCorners[2].y - posterCorners[0].y)
+            };
+        }
+
+        function initARPoints(posterRect) {
+            const scene = document.getElementById('ar-scene');
+            
+            // Calculate 5 points in the poster area
+            const points = [
+                { x: 0.2, y: 0.2 },  // Top-left area
+                { x: 0.8, y: 0.2 },  // Top-right
+                { x: 0.5, y: 0.5 },  // Center
+                { x: 0.2, y: 0.8 },  // Bottom-left
+                { x: 0.8, y: 0.8 }   // Bottom-right
+            ];
+            
+            points.forEach((point, index) => {
+                const entity = document.createElement('a-entity');
+                entity.setAttribute('geometry', 'primitive: circle; radius: 0.5');
+                entity.setAttribute('material', 'color: cyan; shader: flat');
+                entity.setAttribute('position', {
+                    x: (point.x * posterRect.width) / 100,
+                    y: -(point.y * posterRect.height) / 100,
+                    z: -1
+                });
+                entity.setAttribute('animation', 'property: scale; to: 1.2 1.2 1; dur: 1000; easing: easeInOutSine; loop: true; dir: alternate');
+                entity.setAttribute('data-point', index + 1);
+                entity.classList.add('clickable');
+                scene.appendChild(entity);
+            });
+        }
+
+        function showInfoCard(pointNum) {
+            const card = document.getElementById('info-card');
+            document.getElementById('info-title').textContent = infoPoints[pointNum].title;
+            document.getElementById('info-content').textContent = infoPoints[pointNum].content;
+            
+            // Animate card appearance
+            card.style.display = 'block';
+            card.style.animation = 'none';
+            void card.offsetWidth; // Trigger reflow
+            card.style.animation = 'fadeInUp 0.5s ease-out';
+        }
+
+        async function initHandTracking() {
+            const model = await handpose.load();
+            const video = document.createElement('video');
+            
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                video.srcObject = stream;
+                video.play();
+                
+                function detectHands() {
+                    model.estimateHands(video).then(predictions => {
+                        if (isCalibrating && predictions.length > 0) {
+                            const hand = predictions[0];
+                            const indexTip = hand.annotations.indexFinger[3];
+                            
+                            // Convert normalized coordinates to screen space
+                            const x = indexTip[0] * window.innerWidth;
+                            const y = indexTip[1] * window.innerHeight;
+                            
+                            // Simulate click at finger tip
+                            if (posterCorners.length < 4) {
+                                posterCorners.push({ x, y });
+                                updateCalibrationFrame();
+                            }
+                        }
+                        requestAnimationFrame(detectHands);
+                    });
+                }
+                detectHands();
+            });
+        }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9710b7b3d5024095',t:'MTc1NTUxMjgzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
