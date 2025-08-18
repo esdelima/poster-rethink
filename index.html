@@ -1,400 +1,230 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Tanpa Marker</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .ar-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .camera-view {
-            position: relative;
-            width: 90vw;
-            max-width: 400px;
-            height: calc(90vw * 1.25);
-            max-height: 500px;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            border: 4px solid white;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-        }
-
-        .placement-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 64%;
-            border: 3px dashed rgba(255, 255, 255, 0.8);
-            border-radius: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: pulse 2s infinite;
-        }
-
-        .placement-text {
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-        }
-
-        .ar-points {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .ar-point {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            border: 3px solid white;
-            border-radius: 50%;
-            cursor: pointer;
-            pointer-events: all;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: all 0.3s ease;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        .ar-point:hover {
-            transform: scale(1.2);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-        }
-
-        .ar-point:nth-child(1) { top: 20%; left: 25%; animation-delay: 0s; }
-        .ar-point:nth-child(2) { top: 15%; right: 20%; animation-delay: 0.5s; }
-        .ar-point:nth-child(3) { top: 45%; left: 15%; animation-delay: 1s; }
-        .ar-point:nth-child(4) { bottom: 30%; right: 25%; animation-delay: 1.5s; }
-        .ar-point:nth-child(5) { bottom: 20%; left: 30%; animation-delay: 2s; }
-
-        .controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 100;
-        }
-
-        .control-btn {
-            padding: 12px 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 25px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .control-btn:hover {
-            background: white;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }
-
-        .image-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-        }
-
-        .modal-content {
-            position: relative;
-            max-width: 90vw;
-            max-height: 80vh;
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-        }
-
-        .modal-image {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            width: 40px;
-            height: 40px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .close-btn:hover {
-            background: rgba(0,0,0,0.9);
-            transform: scale(1.1);
-        }
-
-        .start-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .start-title {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .start-subtitle {
-            font-size: 16px;
-            margin-bottom: 30px;
-            opacity: 0.9;
-            line-height: 1.5;
-        }
-
-        .start-btn {
-            padding: 15px 30px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            border: none;
-            border-radius: 30px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        }
-
-        .start-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(0,0,0,0.4);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .hidden {
-            display: none !important;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Poster AR — Anchor 4:5 dengan Bullet Interaktif</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #ui { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; pointer-events: none; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .card { align-self: center; background: rgba(0,0,0,.55); color: #fff; border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(6px); max-width: 520px; }
+    .row { display: flex; gap: 8px; align-items: center; justify-content: center; }
+    .btn { pointer-events: auto; border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 600; background: #06f; color: #fff; }
+    .btn[disabled] { opacity: .5; }
+    .hint { font-size: 12px; opacity: .9; }
+    .badge { background: rgba(255,255,255,.15); padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+  </style>
 </head>
 <body>
-    <div class="start-screen" id="startScreen">
-        <div class="start-title">🎯 AR Tanpa Marker</div>
-        <div class="start-subtitle">
-            Arahkan kamera ke area yang diinginkan<br>
-            dan klik point untuk melihat gambar
-        </div>
-        <button class="start-btn" onclick="startAR()">Mulai AR</button>
+  <div id="ui">
+    <div class="card" id="supportCard">
+      <div class="row" style="justify-content: space-between">
+        <div class="badge">Markerless • WebXR</div>
+        <div class="badge" id="status">Idle</div>
+      </div>
+      <div style="margin-top:6px; line-height:1.35">
+        <b>Petunjuk:</b> Buka di <b>Chrome Android</b> (ARCore). Ketuk area datar/sekitar poster untuk <b>meletakkan info</b>. Info akan <b>ter-anker</b> di dunia nyata (bukan HUD).
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="start">Mulai AR</button>
+        <button class="btn" id="reset" disabled>Reset Anchor</button>
+      </div>
     </div>
+  </div>
 
-    <div class="ar-container">
-        <div class="camera-view">
-            <video id="video" autoplay muted playsinline></video>
-            
-            <div class="placement-frame" id="placementFrame">
-                <div class="placement-text">
-                    Posisikan objek dalam frame ini<br>
-                    Rasio 4:5
-                </div>
-            </div>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+    import { XRButton } from 'https://unpkg.com/three@0.161.0/examples/jsm/webxr/XRButton.js';
 
-            <div class="ar-points hidden" id="arPoints">
-                <div class="ar-point" onclick="showImage(1)">1</div>
-                <div class="ar-point" onclick="showImage(2)">2</div>
-                <div class="ar-point" onclick="showImage(3)">3</div>
-                <div class="ar-point" onclick="showImage(4)">4</div>
-                <div class="ar-point" onclick="showImage(5)">5</div>
-            </div>
-        </div>
+    const ui = {
+      status: document.getElementById('status'),
+      btnStart: document.getElementById('start'),
+      btnReset: document.getElementById('reset'),
+    };
 
-        <div class="controls">
-            <button class="control-btn" onclick="setAnchor()">Set Anchor</button>
-            <button class="control-btn" onclick="resetPoints()">Reset</button>
-        </div>
-    </div>
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
 
-    <div class="image-modal" id="imageModal">
-        <div class="modal-content">
-            <button class="close-btn" onclick="closeModal()">&times;</button>
-            <img class="modal-image" id="modalImage" src="" alt="AR Image">
-        </div>
-    </div>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera();
 
-    <script>
-        let video;
-        let isAnchorSet = false;
-        
-        // Sample image URLs - ganti dengan URL gambar yang diinginkan
-        const imageUrls = {
-            1: 'https://picsum.photos/400/300?random=1',
-            2: 'https://picsum.photos/400/300?random=2',
-            3: 'https://picsum.photos/400/300?random=3',
-            4: 'https://picsum.photos/400/300?random=4',
-            5: 'https://picsum.photos/400/300?random=5'
-        };
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.1));
+    const dir = new THREE.DirectionalLight(0xffffff, .8); dir.position.set(1,2,1); scene.add(dir);
 
-        async function startAR() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment', // Kamera belakang
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                
-                video = document.getElementById('video');
-                video.srcObject = stream;
-                
-                document.getElementById('startScreen').classList.add('hidden');
-                
-            } catch (error) {
-                alert('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
-                console.error('Error accessing camera:', error);
-            }
+    // --- Buat plane dengan rasio 4:5 ---
+    function makeInfoPlane({ widthMeters=0.8, heightMeters=1.0 }={}) {
+      const group = new THREE.Group();
+
+      const bg = new THREE.Mesh(
+        new THREE.PlaneGeometry(widthMeters, heightMeters),
+        new THREE.MeshStandardMaterial({ color: 0x143a66, roughness: 0.9, metalness: 0, side: THREE.DoubleSide })
+      );
+      group.add(bg);
+
+      // Bullet items (3 kiri, 2 kanan)
+      const bullets = [];
+      const bulletData = [
+        { text: "Bullet 1", url: "https://placekitten.com/400/300" },
+        { text: "Bullet 2", url: "https://placekitten.com/401/300" },
+        { text: "Bullet 3", url: "https://placekitten.com/402/300" },
+        { text: "Bullet 4", url: "https://placekitten.com/403/300" },
+        { text: "Bullet 5", url: "https://placekitten.com/404/300" },
+      ];
+
+      const bulletMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const sphereGeo = new THREE.SphereGeometry(0.03, 16, 16);
+
+      bulletData.forEach((b,i)=>{
+        const s = new THREE.Mesh(sphereGeo, bulletMat.clone());
+        const col = i<3 ? -0.25 : 0.25;
+        const row = i<3 ? (0.3 - i*0.3) : (0.15 - (i-3)*0.3);
+        s.position.set(col, row, 0.01);
+        s.userData = { url: b.url, text: b.text };
+        group.add(s);
+        bullets.push(s);
+      });
+
+      group.userData.bullets = bullets;
+      return group;
+    }
+
+    const infoMesh = makeInfoPlane();
+    infoMesh.visible = false;
+    scene.add(infoMesh);
+
+    // Reticle
+    const reticle = new THREE.Mesh(
+      new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI/2),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9 })
+    );
+    reticle.matrixAutoUpdate = false;
+    reticle.visible = false;
+    scene.add(reticle);
+
+    let xrRefSpace, xrViewerSpace, xrHitTestSource = null;
+    let anchor = null;
+    let placing = true;
+
+    function setStatus(t){ ui.status.textContent = t; }
+
+    async function startAR(){
+      if (!navigator.xr || !await navigator.xr.isSessionSupported('immersive-ar')) {
+        alert('Perangkat/Browser tidak mendukung WebXR AR.');
+        return;
+      }
+      const session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test', 'local'],
+        optionalFeatures: ['anchors', 'dom-overlay'],
+        domOverlay: { root: document.body }
+      });
+
+      renderer.xr.setReferenceSpaceType('local');
+      await renderer.xr.setSession(session);
+
+      xrRefSpace = await session.requestReferenceSpace('local');
+      xrViewerSpace = await session.requestReferenceSpace('viewer');
+      xrHitTestSource = await session.requestHitTestSource({ space: xrViewerSpace });
+
+      ui.btnStart.disabled = true;
+      ui.btnReset.disabled = false;
+      setStatus('Scan permukaan & ketuk untuk tempatkan');
+
+      window.addEventListener('click', onSelect);
+
+      session.addEventListener('end', () => {
+        ui.btnStart.disabled = false;
+        ui.btnReset.disabled = true;
+        reticle.visible = false;
+        infoMesh.visible = false;
+        anchor = null; placing = true;
+        window.removeEventListener('click', onSelect);
+      });
+
+      renderer.setAnimationLoop(onXRFrame);
+    }
+
+    function resetAnchor(){
+      anchor = null;
+      infoMesh.visible = false;
+      placing = true;
+      setStatus('Scan & ketuk untuk tempatkan');
+    }
+
+    async function onSelect(event){
+      if (!placing) {
+        // cek klik ke bullet
+        const mouse = new THREE.Vector2((event.clientX/innerWidth)*2-1, -(event.clientY/innerHeight)*2+1);
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(infoMesh.userData.bullets||[]);
+        if (intersects.length>0){
+          const url = intersects[0].object.userData.url;
+          window.open(url, '_blank');
         }
+        return;
+      }
 
-        function setAnchor() {
-            if (!isAnchorSet) {
-                document.getElementById('placementFrame').classList.add('hidden');
-                document.getElementById('arPoints').classList.remove('hidden');
-                isAnchorSet = true;
-                
-                // Update button text
-                event.target.textContent = 'Anchor Set ✓';
-                event.target.style.background = '#4CAF50';
-                event.target.style.color = 'white';
-            }
+      const frame = renderer.xr.getFrame();
+      const hitResults = frame.getHitTestResults(xrHitTestSource);
+      if (!hitResults.length) return;
+
+      const hit = hitResults[0];
+      const hitPose = hit.getPose(xrRefSpace);
+
+      if (hit.createAnchor) {
+        anchor = await hit.createAnchor();
+        placing = false;
+        infoMesh.visible = true;
+      } else {
+        const m = new THREE.Matrix4().fromArray(hitPose.transform.matrix);
+        infoMesh.matrix.copy(m);
+        infoMesh.matrix.decompose(infoMesh.position, infoMesh.quaternion, infoMesh.scale);
+        placing = false;
+        infoMesh.visible = true;
+      }
+    }
+
+    function onXRFrame(time, frame){
+      if (xrHitTestSource && placing) {
+        const hits = frame.getHitTestResults(xrHitTestSource);
+        if (hits.length) {
+          const hitPose = hits[0].getPose(xrRefSpace);
+          reticle.visible = true;
+          reticle.matrix.fromArray(hitPose.transform.matrix);
+        } else {
+          reticle.visible = false;
         }
+      } else {
+        reticle.visible = false;
+      }
 
-        function resetPoints() {
-            document.getElementById('placementFrame').classList.remove('hidden');
-            document.getElementById('arPoints').classList.add('hidden');
-            isAnchorSet = false;
-            
-            // Reset button
-            const anchorBtn = document.querySelector('.control-btn');
-            anchorBtn.textContent = 'Set Anchor';
-            anchorBtn.style.background = 'rgba(255, 255, 255, 0.9)';
-            anchorBtn.style.color = 'black';
+      if (anchor && anchor.anchorSpace) {
+        const ap = frame.getPose(anchor.anchorSpace, xrRefSpace);
+        if (ap) {
+          infoMesh.matrix.fromArray(ap.transform.matrix);
+          infoMesh.matrix.decompose(infoMesh.position, infoMesh.quaternion, infoMesh.scale);
         }
+      }
 
-        function showImage(pointNumber) {
-            const modal = document.getElementById('imageModal');
-            const modalImage = document.getElementById('modalImage');
-            
-            modalImage.src = imageUrls[pointNumber];
-            modal.style.display = 'flex';
-            
-            // Add loading effect
-            modalImage.onload = function() {
-                this.style.opacity = '1';
-            };
-            modalImage.style.opacity = '0';
-            modalImage.style.transition = 'opacity 0.3s ease';
-        }
+      renderer.render(scene, camera);
+    }
 
-        function closeModal() {
-            document.getElementById('imageModal').style.display = 'none';
-        }
+    ui.btnStart.addEventListener('click', startAR);
+    ui.btnReset.addEventListener('click', resetAnchor);
 
-        // Close modal when clicking outside
-        document.getElementById('imageModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
+    addEventListener('resize', ()=>{
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+    });
 
-        // Handle orientation changes
-        window.addEventListener('orientationchange', function() {
-            setTimeout(() => {
-                if (video && video.srcObject) {
-                    video.play();
-                }
-            }, 500);
-        });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9712026625b9f8da',t:'MTc1NTUyNjM4MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    (async () => {
+      if (!('xr' in navigator)) { setStatus('Browser tidak mendukung WebXR'); return; }
+      const ok = await navigator.xr.isSessionSupported('immersive-ar');
+      setStatus(ok ? 'Siap • Tekan Mulai AR' : 'AR tidak didukung');
+    })();
+  </script>
+</body>
 </html>
