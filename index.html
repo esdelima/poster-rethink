@@ -1,513 +1,170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Poster Interactive</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #000;
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        #container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        #frame {
-            position: absolute;
-            border: 3px solid #00ff88;
-            border-radius: 12px;
-            background: rgba(0, 255, 136, 0.1);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-            pointer-events: all;
-            cursor: move;
-            transition: all 0.3s ease;
-        }
-
-        #frame.locked {
-            border-color: #ff6b35;
-            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
-            cursor: default;
-        }
-
-        .point {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(45deg, #ff6b35, #f7931e);
-            border: 3px solid white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            transform: scale(0);
-            animation: popIn 0.5s ease forwards;
-            z-index: 10;
-        }
-
-        @keyframes popIn {
-            to {
-                transform: scale(1);
-            }
-        }
-
-        .point:hover {
-            transform: scale(1.2);
-            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-        }
-
-        .point:active {
-            transform: scale(0.9);
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 20;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn.danger {
-            background: linear-gradient(45deg, #ff6b35, #f7931e);
-        }
-
-        #imageModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-
-        #modalContent {
-            max-width: 90%;
-            max-height: 90%;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        #closeModal {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-        }
-
-        #instructions {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            z-index: 15;
-            backdrop-filter: blur(10px);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>AR Poster (Markerless Image Tracking) — Three.js + WebXR</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    #enterAR { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; padding: 12px 16px; border: 0; border-radius: 999px; background: #fff; color: #111; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+    #enterAR[disabled] { opacity: .5; }
+    .banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,.7); color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 12px; backdrop-filter: blur(6px); }
+    .hint { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); color: #fff; opacity: .8; font-size: 12px; }
+    a { color: #7ab8ff; text-decoration: none }
+  </style>
 </head>
 <body>
-    <div id="container">
-        <video id="video" autoplay muted playsinline></video>
-        
-        <div id="overlay">
-            <div id="instructions">
-                📱 Gerakkan frame hijau ke posisi poster, lalu tekan "Kunci Posisi" untuk menempatkan titik interaktif
-                <div id="orientationWarning" class="hidden" style="margin-top: 10px; padding: 10px; background: rgba(255, 107, 53, 0.2); border-radius: 5px;">
-                    ⚠️ Untuk AR yang akurat, izinkan akses sensor orientasi perangkat
-                    <button id="requestPermission" style="margin-left: 10px; padding: 5px 10px; background: #ff6b35; color: white; border: none; border-radius: 3px; font-size: 12px;">Izinkan</button>
-                </div>
-            </div>
-            
-            <div id="frame"></div>
-        </div>
+  <div class="banner">WebXR Image Tracking • Three.js</div>
+  <div class="hint">Ganti <code>POSTER_IMAGE_URL</code> dengan gambar poster kamu (harus kontras & bertekstur).</div>
+  <button id="enterAR" disabled>Memeriksa dukungan AR…</button>
 
-        <div id="controls">
-            <button class="btn" id="lockBtn">Kunci Posisi</button>
-            <button class="btn danger hidden" id="resetBtn">Reset</button>
-        </div>
-    </div>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165/build/three.module.js';
 
-    <div id="imageModal">
-        <button id="closeModal">&times;</button>
-        <img id="modalContent" src="" alt="Interactive Content">
-    </div>
+    // ====== KONFIGURASI YANG PERLU DIGANTI ======
+    const POSTER_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/800px-Fronalpstock_big.jpg'; // TODO: ganti ke URL poster kamu
+    const POSTER_WIDTH_METERS = 0.6; // lebar fisik poster di dunia nyata (meter)
 
-    <script>
-        class ARPosterApp {
-            constructor() {
-                this.video = document.getElementById('video');
-                this.frame = document.getElementById('frame');
-                this.overlay = document.getElementById('overlay');
-                this.lockBtn = document.getElementById('lockBtn');
-                this.resetBtn = document.getElementById('resetBtn');
-                this.instructions = document.getElementById('instructions');
-                this.imageModal = document.getElementById('imageModal');
-                this.modalContent = document.getElementById('modalContent');
-                this.closeModal = document.getElementById('closeModal');
-                this.orientationWarning = document.getElementById('orientationWarning');
-                this.requestPermissionBtn = document.getElementById('requestPermission');
-                
-                this.isLocked = false;
-                this.isDragging = false;
-                this.points = [];
-                this.worldPoints = []; // Store real-world positions
-                this.deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
-                this.initialOrientation = null;
-                this.isOrientationSupported = false;
-                
-                // Sample image URLs for the 5 points
-                this.imageUrls = [
-                    'https://picsum.photos/400/600?random=1',
-                    'https://picsum.photos/400/600?random=2', 
-                    'https://picsum.photos/400/600?random=3',
-                    'https://picsum.photos/400/600?random=4',
-                    'https://picsum.photos/400/600?random=5'
-                ];
-                
-                this.init();
+    // (Opsional) tekstur/overlay yang akan ditampilkan di atas poster
+    const INFO_TEXTURE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png';
+
+    // ====== CEK DUKUNGAN ======
+    const button = document.getElementById('enterAR');
+    const supported = navigator.xr && await navigator.xr.isSessionSupported?.('immersive-ar');
+    const imageTrackingSupported = 'XRImageTrackingResult' in window; // heuristik sederhana
+
+    if (!supported) {
+      button.textContent = 'Perangkat tidak mendukung WebXR AR';
+    } else if (!imageTrackingSupported) {
+      button.textContent = 'Browser belum mendukung Image Tracking WebXR';
+    } else {
+      button.textContent = 'Masuk AR';
+      button.disabled = false;
+    }
+
+    // ====== SIAPKAN THREE.JS RENDERER ======
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // Scene dasar
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera();
+
+    // Lighting lembut agar konten terlihat
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+    scene.add(light);
+
+    // Kontainer untuk konten yang menempel pada poster
+    const posterGroup = new THREE.Group();
+    posterGroup.matrixAutoUpdate = false; // akan diupdate dari pose image tracking
+    scene.add(posterGroup);
+
+    // Tambah plane untuk menampilkan poster (sebagai acuan ukuran/orientasi)
+    let posterPlane; let infoPlane;
+
+    // Helper: load texture 
+    function loadTexture(url) {
+      return new Promise((resolve, reject) => {
+        new THREE.TextureLoader().load(url, tex => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); }, undefined, reject);
+      });
+    }
+
+    // ====== Persiapan gambar target (ImageBitmap) ======
+    async function loadImageBitmap(url) {
+      const res = await fetch(url, { mode: 'cors' });
+      const blob = await res.blob();
+      return await createImageBitmap(blob);
+    }
+
+    async function enterAR() {
+      button.disabled = true;
+      button.textContent = 'Memulai…';
+
+      // Load image target dan tekstur konten
+      const [imageBitmap, posterTex, infoTex] = await Promise.all([
+        loadImageBitmap(POSTER_IMAGE_URL),
+        loadTexture(POSTER_IMAGE_URL),
+        loadTexture(INFO_TEXTURE_URL)
+      ]);
+
+      // Buat plane untuk representasi poster (ukuran real sesuai POSTER_WIDTH_METERS)
+      const aspect = imageBitmap.width / imageBitmap.height;
+      const posterWidth = POSTER_WIDTH_METERS;
+      const posterHeight = posterWidth / aspect;
+
+      posterPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(posterWidth, posterHeight),
+        new THREE.MeshBasicMaterial({ map: posterTex, transparent: true })
+      );
+      // Sedikit offset supaya tidak z-fighting dengan dinding (maju 2mm dari permukaan)
+      posterPlane.position.set(0, 0, 0.002);
+
+      // Konten tambahan (mis: kartu info) diletakkan di atas poster
+      const infoW = posterWidth * 0.6;
+      const infoH = infoW * (infoTex.image.height / infoTex.image.width);
+      infoPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(infoW, infoH),
+        new THREE.MeshBasicMaterial({ map: infoTex, transparent: true })
+      );
+      // Letakkan di atas tengah poster
+      infoPlane.position.set(0, posterHeight * 0.35, 0.01);
+
+      posterGroup.add(posterPlane);
+      posterGroup.add(infoPlane);
+
+      // Minta sesi AR dengan Image Tracking
+      const sessionInit = {
+        requiredFeatures: ['local-floor', 'hit-test', 'anchors', 'dom-overlay', 'unbounded', 'plane-detection'].filter(f => f), // beberapa mungkin diabaikan
+        trackedImages: [
+          {
+            image: imageBitmap,      // gambar poster sebagai target
+            widthInMeters: posterWidth
+          }
+        ],
+        domOverlay: { root: document.body }
+      };
+
+      const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+      renderer.xr.setReferenceSpaceType('local');
+      await renderer.xr.setSession(session);
+
+      const refSpace = await renderer.xr.getSession().requestReferenceSpace('local');
+
+      // Jalankan loop render dan update pose poster dari image tracking
+      renderer.setAnimationLoop((time, frame) => {
+        if (frame) {
+          const results = frame.getImageTrackingResults?.() || [];
+          for (const result of results) {
+            const pose = frame.getPose(result.imageSpace, refSpace);
+            if (pose) {
+              posterGroup.visible = result.trackingState === 'tracked' || result.trackingState === 'emulated';
+              // Terapkan matrix dari pose ke group (world-space transform)
+              posterGroup.matrix.fromArray(pose.transform.matrix);
             }
-
-            async init() {
-                await this.setupCamera();
-                this.setupFrame();
-                this.setupEventListeners();
-                this.setupOrientationTracking();
-            }
-
-            setupOrientationTracking() {
-                // Check if device orientation is supported
-                if (window.DeviceOrientationEvent) {
-                    // Request permission for iOS 13+
-                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                        this.orientationWarning.classList.remove('hidden');
-                        this.requestPermissionBtn.addEventListener('click', () => {
-                            DeviceOrientationEvent.requestPermission()
-                                .then(response => {
-                                    if (response === 'granted') {
-                                        this.startOrientationTracking();
-                                        this.orientationWarning.classList.add('hidden');
-                                    }
-                                })
-                                .catch(console.error);
-                        });
-                    } else {
-                        this.startOrientationTracking();
-                    }
-                } else {
-                    console.warn('Device orientation not supported');
-                }
-            }
-
-            startOrientationTracking() {
-                this.isOrientationSupported = true;
-                window.addEventListener('deviceorientation', (event) => {
-                    this.deviceOrientation = {
-                        alpha: event.alpha || 0,
-                        beta: event.beta || 0,
-                        gamma: event.gamma || 0
-                    };
-                    
-                    if (this.isLocked && this.initialOrientation) {
-                        this.updatePointPositions();
-                    }
-                });
-            }
-
-            async setupCamera() {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { 
-                            facingMode: 'environment',
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
-                        }
-                    });
-                    this.video.srcObject = stream;
-                } catch (error) {
-                    console.error('Error accessing camera:', error);
-                    alert('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
-                }
-            }
-
-            setupFrame() {
-                // Set initial frame size (4:5 ratio)
-                const frameWidth = Math.min(window.innerWidth * 0.6, 240);
-                const frameHeight = frameWidth * 1.25; // 4:5 ratio
-                
-                this.frame.style.width = frameWidth + 'px';
-                this.frame.style.height = frameHeight + 'px';
-                this.frame.style.left = (window.innerWidth - frameWidth) / 2 + 'px';
-                this.frame.style.top = (window.innerHeight - frameHeight) / 2 + 'px';
-            }
-
-            setupEventListeners() {
-                // Frame dragging
-                this.frame.addEventListener('touchstart', this.handleTouchStart.bind(this));
-                this.frame.addEventListener('touchmove', this.handleTouchMove.bind(this));
-                this.frame.addEventListener('touchend', this.handleTouchEnd.bind(this));
-                
-                this.frame.addEventListener('mousedown', this.handleMouseDown.bind(this));
-                document.addEventListener('mousemove', this.handleMouseMove.bind(this));
-                document.addEventListener('mouseup', this.handleMouseUp.bind(this));
-
-                // Buttons
-                this.lockBtn.addEventListener('click', this.lockPosition.bind(this));
-                this.resetBtn.addEventListener('click', this.reset.bind(this));
-                
-                // Modal
-                this.closeModal.addEventListener('click', this.hideModal.bind(this));
-                this.imageModal.addEventListener('click', (e) => {
-                    if (e.target === this.imageModal) this.hideModal();
-                });
-
-                // Prevent context menu on long press
-                document.addEventListener('contextmenu', e => e.preventDefault());
-            }
-
-            handleTouchStart(e) {
-                if (this.isLocked) return;
-                e.preventDefault();
-                this.isDragging = true;
-                const touch = e.touches[0];
-                this.startX = touch.clientX - this.frame.offsetLeft;
-                this.startY = touch.clientY - this.frame.offsetTop;
-            }
-
-            handleTouchMove(e) {
-                if (!this.isDragging || this.isLocked) return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                this.moveFrame(touch.clientX - this.startX, touch.clientY - this.startY);
-            }
-
-            handleTouchEnd(e) {
-                this.isDragging = false;
-            }
-
-            handleMouseDown(e) {
-                if (this.isLocked) return;
-                this.isDragging = true;
-                this.startX = e.clientX - this.frame.offsetLeft;
-                this.startY = e.clientY - this.frame.offsetTop;
-            }
-
-            handleMouseMove(e) {
-                if (!this.isDragging || this.isLocked) return;
-                this.moveFrame(e.clientX - this.startX, e.clientY - this.startY);
-            }
-
-            handleMouseUp(e) {
-                this.isDragging = false;
-            }
-
-            moveFrame(x, y) {
-                const maxX = window.innerWidth - this.frame.offsetWidth;
-                const maxY = window.innerHeight - this.frame.offsetHeight;
-                
-                x = Math.max(0, Math.min(x, maxX));
-                y = Math.max(0, Math.min(y, maxY));
-                
-                this.frame.style.left = x + 'px';
-                this.frame.style.top = y + 'px';
-            }
-
-            lockPosition() {
-                this.isLocked = true;
-                this.frame.classList.add('locked');
-                this.lockBtn.classList.add('hidden');
-                this.resetBtn.classList.remove('hidden');
-                this.instructions.classList.add('hidden');
-                
-                // Store initial orientation as reference point
-                this.initialOrientation = { ...this.deviceOrientation };
-                
-                this.createPoints();
-            }
-
-            createPoints() {
-                const frameRect = this.frame.getBoundingClientRect();
-                const padding = 20;
-                
-                // Create 5 points with random positions inside the frame
-                for (let i = 0; i < 5; i++) {
-                    const point = document.createElement('div');
-                    point.className = 'point';
-                    point.textContent = i + 1;
-                    
-                    // Random position within frame bounds (with padding)
-                    const relativeX = Math.random() * (frameRect.width - 80) + padding;
-                    const relativeY = Math.random() * (frameRect.height - 80) + padding;
-                    
-                    // Store world position relative to frame center
-                    const worldPoint = {
-                        relativeX: relativeX - frameRect.width / 2,
-                        relativeY: relativeY - frameRect.height / 2,
-                        screenX: frameRect.left + relativeX,
-                        screenY: frameRect.top + relativeY,
-                        element: point
-                    };
-                    
-                    point.style.position = 'fixed';
-                    point.style.left = worldPoint.screenX + 'px';
-                    point.style.top = worldPoint.screenY + 'px';
-                    point.style.animationDelay = (i * 0.1) + 's';
-                    
-                    point.addEventListener('click', () => this.showImage(i));
-                    
-                    document.body.appendChild(point);
-                    this.points.push(point);
-                    this.worldPoints.push(worldPoint);
-                }
-            }
-
-            updatePointPositions() {
-                if (!this.initialOrientation || !this.isOrientationSupported) return;
-                
-                // Calculate orientation difference
-                const deltaAlpha = this.deviceOrientation.alpha - this.initialOrientation.alpha;
-                const deltaBeta = this.deviceOrientation.beta - this.initialOrientation.beta;
-                const deltaGamma = this.deviceOrientation.gamma - this.initialOrientation.gamma;
-                
-                // Sensitivity factors for movement
-                const sensitivity = 3;
-                
-                this.worldPoints.forEach((worldPoint, index) => {
-                    // Calculate new position based on orientation change
-                    const offsetX = deltaGamma * sensitivity;
-                    const offsetY = deltaBeta * sensitivity;
-                    
-                    // Apply offset to maintain world position
-                    const newX = worldPoint.screenX - offsetX;
-                    const newY = worldPoint.screenY - offsetY;
-                    
-                    // Update point position
-                    worldPoint.element.style.left = newX + 'px';
-                    worldPoint.element.style.top = newY + 'px';
-                });
-            }
-
-            showImage(index) {
-                this.modalContent.src = this.imageUrls[index];
-                this.imageModal.style.display = 'flex';
-                
-                // Add loading effect
-                this.modalContent.style.opacity = '0';
-                this.modalContent.onload = () => {
-                    this.modalContent.style.transition = 'opacity 0.3s ease';
-                    this.modalContent.style.opacity = '1';
-                };
-            }
-
-            hideModal() {
-                this.imageModal.style.display = 'none';
-            }
-
-            reset() {
-                this.isLocked = false;
-                this.frame.classList.remove('locked');
-                this.lockBtn.classList.remove('hidden');
-                this.resetBtn.classList.add('hidden');
-                this.instructions.classList.remove('hidden');
-                
-                // Remove all points
-                this.points.forEach(point => point.remove());
-                this.points = [];
-                this.worldPoints = [];
-                this.initialOrientation = null;
-                
-                // Reset frame position
-                this.setupFrame();
-            }
+          }
         }
+        renderer.render(scene, camera);
+      });
 
-        // Initialize the app when page loads
-        window.addEventListener('load', () => {
-            new ARPosterApp();
-        });
+      // Resize handling
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
 
-        // Handle orientation changes
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                location.reload();
-            }, 500);
-        });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97117a7075b6a8c1',t:'MTc1NTUyMDgxMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+      button.style.display = 'none';
+    }
+
+    button.addEventListener('click', enterAR);
+  </script>
+
+  <!-- Catatan:
+    1) Ganti POSTER_IMAGE_URL dengan URL poster kamu (lebih kontras/bertekstur = tracking lebih stabil).
+    2) Ganti POSTER_WIDTH_METERS sesuai ukuran fisik poster sebenarnya di dunia nyata.
+    3) Fitur WebXR Image Tracking masih bergantung dukungan browser/perangkat. Chrome Android terbaru biasanya paling cepat mendukung.
+    4) Jika perangkat tidak mendukung, pertimbangkan MindAR.js/8thWall sebagai alternatif yang lebih kompatibel.
+  -->
+</body>
 </html>
