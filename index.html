@@ -14,6 +14,18 @@
             overflow: hidden;
         }
         
+        /* Fix camera zoom issue */
+        video {
+            object-fit: cover !important;
+            transform: scale(0.75) !important;
+            transform-origin: center !important;
+        }
+        
+        a-scene {
+            width: 100vw !important;
+            height: 100vh !important;
+        }
+        
         .ui-overlay {
             position: fixed;
             top: 0;
@@ -87,8 +99,8 @@
 
     <a-scene
         vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-        renderer="logarithmicDepthBuffer: true; precision: medium;"
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; cameraParametersUrl: data:text/plain;charset=utf-8,{%22fov%22:60,%22aspect%22:1,%22near%22:0.1,%22far%22:1000};"
+        renderer="logarithmicDepthBuffer: true; precision: medium; antialias: true;"
         embedded
         gesture-detector>
         
@@ -213,10 +225,24 @@
             document.querySelector('.detection-frame').style.display = 'block';
         });
         
-        // Camera permission handling
-        navigator.mediaDevices.getUserMedia({ video: true })
+        // Camera permission handling with better constraints
+        navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                zoom: { ideal: 1.0 }
+            } 
+        })
             .then(function(stream) {
                 statusEl.textContent = '📷 Kamera aktif - Arahkan ke poster';
+                
+                // Apply video constraints to reduce zoom
+                const video = document.querySelector('video');
+                if (video) {
+                    video.style.objectFit = 'cover';
+                    video.style.transform = 'scale(0.8)';
+                }
             })
             .catch(function(err) {
                 statusEl.textContent = '❌ Izinkan akses kamera';
@@ -235,5 +261,5 @@
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711d761956ecdfe',t:'MTc1NTUyNDYxOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711dfce960b9c44',t:'MTc1NTUyNDk2My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
