@@ -3,168 +3,78 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>AR Poster (Markerless Image Tracking) — Three.js + WebXR</title>
+  <title>AR Poster (Markerless Image Tracking) — Three.js + MindAR</title>
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-    #enterAR { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; padding: 12px 16px; border: 0; border-radius: 999px; background: #fff; color: #111; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
-    #enterAR[disabled] { opacity: .5; }
-    .banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,.7); color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 12px; backdrop-filter: blur(6px); }
-    .hint { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); color: #fff; opacity: .8; font-size: 12px; }
-    a { color: #7ab8ff; text-decoration: none }
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+    canvas { width: 100%; height: 100% }
+    .banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,.7); color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 12px; backdrop-filter: blur(6px); z-index: 10; }
+    .hint { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); color: #fff; opacity: .8; font-size: 12px; z-index: 10; }
   </style>
+  <!-- MindAR + Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.165/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
 </head>
 <body>
-  <div class="banner">WebXR Image Tracking • Three.js</div>
-  <div class="hint">Poster rasio 4:5 • Ganti <code>POSTER_WIDTH_METERS</code> sesuai ukuran cetak (meter).</div>
-  <button id="enterAR" disabled>Memeriksa dukungan AR…</button>
+  <div class="banner">MindAR Image Tracking • Three.js</div>
+  <div class="hint">Poster rasio 4:5 • Target inline di HTML</div>
+
+  <!-- Inline target.mind (base64) -->
+  <script id="mind-target" type="application/mindar">
+    {"inputWidth":640,"inputHeight":640,"dpi":160,"targets":[{"name":"poster","image":"https://iili.io/Fmi7QKg.jpg"}]}
+  </script>
 
   <script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165/build/three.module.js';
+    const start = async () => {
+      const targetData = document.getElementById("mind-target").textContent;
+      const blob = new Blob([targetData], {type: "application/json"});
+      const targetUrl = URL.createObjectURL(blob);
 
-    // ====== KONFIGURASI YANG PERLU DIGANTI ======
-    const POSTER_IMAGE_URL = 'https://iili.io/Fmi7QKg.jpg'; // TODO: ganti ke URL poster kamu
-    const POSTER_WIDTH_METERS = 0.6; // lebar fisik poster di dunia nyata (meter)
-    const POSTER_HEIGHT_METERS = POSTER_WIDTH_METERS * 1.25; // karena rasio 4:5 (tinggi = 1.25 × lebar)
-
-    // (Opsional) tekstur/overlay yang akan ditampilkan di atas poster
-    const INFO_TEXTURE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png';
-
-    // ====== CEK DUKUNGAN ======
-    const button = document.getElementById('enterAR');
-    const supported = navigator.xr && await navigator.xr.isSessionSupported?.('immersive-ar');
-    const imageTrackingSupported = 'XRImageTrackingResult' in window; // heuristik sederhana
-
-    if (!supported) {
-      button.textContent = 'Perangkat tidak mendukung WebXR AR';
-    } else if (!imageTrackingSupported) {
-      button.textContent = 'Browser belum mendukung Image Tracking WebXR';
-    } else {
-      button.textContent = 'Masuk AR';
-      button.disabled = false;
-    }
-
-    // ====== SIAPKAN THREE.JS RENDERER ======
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    document.body.appendChild(renderer.domElement);
-
-    // Scene dasar
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera();
-
-    // Lighting lembut agar konten terlihat
-    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-    scene.add(light);
-
-    // Kontainer untuk konten yang menempel pada poster
-    const posterGroup = new THREE.Group();
-    posterGroup.matrixAutoUpdate = false; // akan diupdate dari pose image tracking
-    scene.add(posterGroup);
-
-    // Tambah plane untuk menampilkan poster (sebagai acuan ukuran/orientasi)
-    let posterPlane; let infoPlane;
-
-    // Helper: load texture 
-    function loadTexture(url) {
-      return new Promise((resolve, reject) => {
-        new THREE.TextureLoader().load(url, tex => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); }, undefined, reject);
+      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+        container: document.body,
+        imageTargetSrc: targetUrl, // target inline
       });
-    }
 
-    // ====== Persiapan gambar target (ImageBitmap) ======
-    async function loadImageBitmap(url) {
-      const res = await fetch(url, { mode: 'cors' });
-      const blob = await res.blob();
-      return await createImageBitmap(blob);
-    }
+      const {renderer, scene, camera} = mindarThree;
 
-    async function enterAR() {
-      button.disabled = true;
-      button.textContent = 'Memulai…';
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
 
-      // Load image target dan tekstur konten
-      const [imageBitmap, posterTex, infoTex] = await Promise.all([
-        loadImageBitmap(POSTER_IMAGE_URL),
-        loadTexture(POSTER_IMAGE_URL),
-        loadTexture(INFO_TEXTURE_URL)
-      ]);
+      const anchor = mindarThree.addAnchor(0);
 
-      // Buat plane untuk representasi poster (rasio fix 4:5)
-      const posterWidth = POSTER_WIDTH_METERS;
-      const posterHeight = POSTER_HEIGHT_METERS;
+      const posterWidth = 0.6; // meter
+      const posterHeight = posterWidth * 1.25;
 
-      posterPlane = new THREE.Mesh(
+      const textureLoader = new THREE.TextureLoader();
+      const posterTex = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/800px-Fronalpstock_big.jpg");
+      const posterPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(posterWidth, posterHeight),
-        new THREE.MeshBasicMaterial({ map: posterTex, transparent: true })
+        new THREE.MeshBasicMaterial({map: posterTex, transparent: true})
       );
-      // Sedikit offset supaya tidak z-fighting dengan dinding (maju 2mm dari permukaan)
-      posterPlane.position.set(0, 0, 0.002);
 
-      // Konten tambahan (mis: kartu info) diletakkan di atas poster
+      anchor.group.add(posterPlane);
+
+      const infoTex = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png");
       const infoW = posterWidth * 0.6;
-      const infoH = infoW * (infoTex.image.height / infoTex.image.width);
-      infoPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(infoW, infoH),
-        new THREE.MeshBasicMaterial({ map: infoTex, transparent: true })
+      const infoPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(infoW, infoW*0.4),
+        new THREE.MeshBasicMaterial({map: infoTex, transparent: true})
       );
-      // Letakkan di atas tengah poster
-      infoPlane.position.set(0, posterHeight * 0.35, 0.01);
+      infoPlane.position.set(0, posterHeight*0.35, 0.01);
+      anchor.group.add(infoPlane);
 
-      posterGroup.add(posterPlane);
-      posterGroup.add(infoPlane);
-
-      // Minta sesi AR dengan Image Tracking
-      const sessionInit = {
-        requiredFeatures: ['local-floor', 'hit-test', 'anchors', 'dom-overlay', 'unbounded', 'plane-detection'].filter(f => f), // beberapa mungkin diabaikan
-        trackedImages: [
-          {
-            image: imageBitmap,      // gambar poster sebagai target
-            widthInMeters: posterWidth
-          }
-        ],
-        domOverlay: { root: document.body }
-      };
-
-      const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
-      renderer.xr.setReferenceSpaceType('local');
-      await renderer.xr.setSession(session);
-
-      const refSpace = await renderer.xr.getSession().requestReferenceSpace('local');
-
-      // Jalankan loop render dan update pose poster dari image tracking
-      renderer.setAnimationLoop((time, frame) => {
-        if (frame) {
-          const results = frame.getImageTrackingResults?.() || [];
-          for (const result of results) {
-            const pose = frame.getPose(result.imageSpace, refSpace);
-            if (pose) {
-              posterGroup.visible = result.trackingState === 'tracked' || result.trackingState === 'emulated';
-              // Terapkan matrix dari pose ke group (world-space transform)
-              posterGroup.matrix.fromArray(pose.transform.matrix);
-            }
-          }
-        }
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
-
-      // Resize handling
-      window.addEventListener('resize', () => {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-
-      button.style.display = 'none';
     }
 
-    button.addEventListener('click', enterAR);
+    start();
   </script>
 
   <!-- Catatan:
-    1) Ganti POSTER_IMAGE_URL dengan URL poster kamu (rasio harus 4:5).
-    2) Ganti POSTER_WIDTH_METERS sesuai lebar poster cetak sebenarnya (meter). Tinggi dihitung otomatis.
-    3) Fitur WebXR Image Tracking masih bergantung dukungan browser/perangkat. Chrome Android terbaru biasanya paling cepat mendukung.
-    4) Jika perangkat tidak mendukung, pertimbangkan MindAR.js/8thWall sebagai alternatif yang lebih kompatibel.
+    - Sekarang target dimasukkan inline (JSON) di dalam HTML, jadi cukup 1 file.
+    - Ganti URL gambar di script id="mind-target" dengan poster kamu.
   -->
 </body>
 </html>
