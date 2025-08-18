@@ -3,39 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Web AR — Poster Info (Markerless)</title>
+  <title>Web AR — Poster Bullets (Markerless) — Fokus Bullet</title>
   <style>
     html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
     #app{position:fixed;inset:0;display:flex;flex-direction:column}
-
-    /* camera video full-bleed */
-    #camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)} /* mirror for natural phone UX */
-
-    /* overlay layer for UI + placements */
+    #camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
     #overlay{position:absolute;inset:0;pointer-events:none}
-
-    /* initial instructions */
     #hud{position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 10px;border-radius:8px;z-index:40;font-size:14px}
-
-    /* 4:5 frame the user places */
-    .frame{position:absolute;border:2px dashed rgba(255,255,255,0.9);box-shadow:0 6px 20px rgba(0,0,0,0.4);border-radius:8px;pointer-events:auto;touch-action:none}
-
-    /* bullet markers inside frame */
-    .bullet{position:absolute;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.5);}
-
-    /* info popup */
-    #infoModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;color:#000;padding:16px;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:120;display:none;max-width:90%;max-height:70%;overflow:auto}
-    #infoModal h3{margin:0 0 8px}
+    .frame{position:absolute;border:2px dashed rgba(255,255,255,0.95);box-shadow:0 6px 20px rgba(0,0,0,0.4);border-radius:8px;pointer-events:auto}
+    .bullet{position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.5);}
     #controls{position:fixed;right:12px;top:12px;z-index:50;display:flex;gap:8px;flex-direction:column}
     .btn{background:rgba(255,255,255,0.9);border-radius:8px;padding:8px 10px;font-weight:600;border:0;cursor:pointer}
-
-    /* small form for adding info */
-    #addInfo{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,0.6);color:#fff;padding:10px;border-radius:10px;z-index:60;display:none}
-    #addInfo input,#addInfo textarea{width:260px;margin-top:6px;border-radius:6px;padding:6px;border:0}
-
-    /* top hint for tap-to-place */
-    #placedHint{position:fixed;left:12px;bottom:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px;border-radius:8px;z-index:40;font-size:13px}
-
+    #hint{position:fixed;left:12px;bottom:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px;border-radius:8px;z-index:40;font-size:13px}
+    #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:8px;z-index:80;display:none}
   </style>
 </head>
 <body>
@@ -43,30 +23,17 @@
   <video id="camera" autoplay playsinline muted></video>
   <div id="overlay"></div>
 
-  <div id="hud">1) Ketuk layar untuk menempatkan bingkai 4:5.
-    <br>2) Setelah bingkai muncul, ketuk di dalam bingkai untuk menambah nomor & isi informasinya.
-  </div>
+  <div id="hud">Ketuk layar untuk menempatkan bingkai 4:5. Setelah bingkai muncul, ketuk di dalam bingkai untuk menambahkan bullet (nomor).</div>
 
   <div id="controls">
     <button id="fsBtn" class="btn">Fullscreen</button>
     <button id="clearBtn" class="btn">Hapus Semua</button>
-    <button id="saveBtn" class="btn">Simpan ke local</button>
+    <button id="saveBtn" class="btn">Simpan</button>
     <button id="loadBtn" class="btn">Muat</button>
   </div>
 
-  <div id="addInfo">
-    <div style="font-weight:700">Tambahkan info untuk nomor <span id="nextNum">1</span></div>
-    <input id="titleInp" placeholder="Judul singkat (opsional)" />
-    <textarea id="textInp" rows="3" placeholder="Tulis informasi lengkap yang muncul ketika nomor ditekan"></textarea>
-    <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
-      <button id="addOk" class="btn">Tambah</button>
-      <button id="addCancel" class="btn">Batal</button>
-    </div>
-  </div>
-
-  <div id="infoModal"><h3 id="infoTitle"></h3><div id="infoBody"></div><div style="text-align:right;margin-top:10px"><button id="closeInfo" class="btn">Tutup</button></div></div>
-
-  <div id="placedHint" style="display:none">Bingkai ditempatkan — tarik untuk pindahkan. Ketuk di dalam bingkai untuk tambah nomor.</div>
+  <div id="hint">Bingkai belum ditempatkan</div>
+  <div id="toast"></div>
 </div>
 
 <script>
@@ -74,17 +41,8 @@
   const video = document.getElementById('camera');
   const overlay = document.getElementById('overlay');
   const hud = document.getElementById('hud');
-  const placedHint = document.getElementById('placedHint');
-  const addInfoBox = document.getElementById('addInfo');
-  const nextNumSpan = document.getElementById('nextNum');
-  const titleInp = document.getElementById('titleInp');
-  const textInp = document.getElementById('textInp');
-  const addOk = document.getElementById('addOk');
-  const addCancel = document.getElementById('addCancel');
-  const infoModal = document.getElementById('infoModal');
-  const infoTitle = document.getElementById('infoTitle');
-  const infoBody = document.getElementById('infoBody');
-  const closeInfo = document.getElementById('closeInfo');
+  const hint = document.getElementById('hint');
+  const toast = document.getElementById('toast');
   const fsBtn = document.getElementById('fsBtn');
   const clearBtn = document.getElementById('clearBtn');
   const saveBtn = document.getElementById('saveBtn');
@@ -95,154 +53,96 @@
     const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:'environment'}}, audio:false});
     video.srcObject = stream;
   }catch(e){
-    // fallback to any camera
     try{ const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false}); video.srcObject = s; }
     catch(err){ console.error('camera error', err); alert('Tidak dapat mengakses kamera. Pastikan izin diberikan.'); }
   }
 
-  // data model
+  // model
   let frameEl = null;
-  let bullets = []; // {id,x,y,number,title,text}
+  let bullets = []; // {id,relX,relY,number}
   let nextNum = 1;
 
-  function saveToLocal(){
+  function showToast(msg,ms=1100){ toast.textContent=msg; toast.style.display='block'; setTimeout(()=>{ toast.style.display='none'; }, ms); }
+
+  // save/load
+  function saveData(){
     const data = {frame: frameEl ? {left: frameEl.style.left, top: frameEl.style.top, width: frameEl.style.width, height: frameEl.style.height} : null, bullets};
-    localStorage.setItem('ar_poster_v1', JSON.stringify(data));
-    alert('Tersimpan (localStorage)');
+    localStorage.setItem('ar_bullets_v1', JSON.stringify(data)); showToast('Tersimpan');
   }
-  function loadFromLocal(){
-    const raw = localStorage.getItem('ar_poster_v1');
-    if(!raw){alert('Tidak ada data tersimpan');return}
+  function loadData(){
+    const raw = localStorage.getItem('ar_bullets_v1'); if(!raw){ showToast('Tidak ada data'); return; }
     const data = JSON.parse(raw);
-    clearAll();
+    clearAll(false);
     if(data.frame) createFrameFromData(data.frame);
     if(data.bullets) data.bullets.forEach(b=>createBulletFromData(b));
+    showToast('Dimuat');
+  }
+  function clearAll(ask=true){
+    bullets = []; nextNum = 1;
+    if(frameEl){ frameEl.remove(); frameEl=null; }
+    Array.from(overlay.querySelectorAll('.bullet')).forEach(b=>b.remove());
+    hint.textContent='Bingkai belum ditempatkan';
   }
 
-  function clearAll(){
-    bullets = []; nextNum = 1; updateNextNumLabel();
-    if(frameEl){frameEl.remove(); frameEl=null}
-    Array.from(overlay.querySelectorAll('.bullet')).forEach(b=>b.remove())
-    placedHint.style.display='none';
-  }
+  clearBtn.addEventListener('click', ()=>clearAll());
+  saveBtn.addEventListener('click', saveData);
+  loadBtn.addEventListener('click', loadData);
 
-  clearBtn.addEventListener('click',clearAll);
-  saveBtn.addEventListener('click',saveToLocal);
-  loadBtn.addEventListener('click',loadFromLocal);
-
-  function updateNextNumLabel(){ nextNumSpan.textContent = nextNum }
-
-  // place frame (4:5 ratio) when user taps and there is no frame yet.
+  // place frame once via tap
   overlay.addEventListener('click', (ev)=>{
-    if(frameEl) return; // only first tap places frame
+    if(frameEl) return;
     const rect = overlay.getBoundingClientRect();
-    const x = ev.clientX - rect.left;
-    const y = ev.clientY - rect.top;
-    // choose a reasonable size relative to screen width
-    const width = Math.min(rect.width*0.7, 600);
-    const height = width * 5/4; // 4:5 ratio, width : height = 4:5 -> height = width*(5/4)
+    const x = ev.clientX - rect.left; const y = ev.clientY - rect.top;
+    const width = Math.min(rect.width*0.75, 700);
+    const height = width * 5/4; // 4:5 ratio -> height = width*(5/4)
     const left = x - width/2; const top = y - height/2;
-    frameEl = document.createElement('div');
-    frameEl.className = 'frame';
-    frameEl.style.left = Math.max(8, left) + 'px';
-    frameEl.style.top = Math.max(8, top) + 'px';
-    frameEl.style.width = width + 'px';
-    frameEl.style.height = height + 'px';
+    frameEl = document.createElement('div'); frameEl.className='frame';
+    frameEl.style.left = Math.max(8, left) + 'px'; frameEl.style.top = Math.max(8, top) + 'px'; frameEl.style.width = width + 'px'; frameEl.style.height = height + 'px';
     overlay.appendChild(frameEl);
     frameMakeDraggable(frameEl);
-    placedHint.style.display='block';
+    hint.textContent='Bingkai ditempatkan — ketuk di dalam bingkai untuk menambah bullet';
     hud.style.display='none';
     ev.stopPropagation();
   });
 
-  // create bullet when tapping inside frame
+  // create bullet immediately when tapping inside frame (no info input for now)
   overlay.addEventListener('pointerdown', (ev)=>{
     if(!frameEl) return;
     const isInside = ev.target === frameEl || frameEl.contains(ev.target);
     if(!isInside) return;
-    // compute relative position within frame
+    // avoid creating bullet when clicking on existing bullets
+    if(ev.target.classList && ev.target.classList.contains('bullet')) return;
     const fRect = frameEl.getBoundingClientRect();
-    const oRect = overlay.getBoundingClientRect();
-    const relX = (ev.clientX - fRect.left) / fRect.width; // 0..1
+    const relX = (ev.clientX - fRect.left) / fRect.width;
     const relY = (ev.clientY - fRect.top) / fRect.height;
-    // show add info UI and wait for input
-    pendingPos = {relX, relY};
-    titleInp.value=''; textInp.value='';
-    addInfoBox.style.display='block'; addInfoBox.style.pointerEvents='auto';
-    nextNumSpan.textContent = nextNum;
-
-    // prevent the event from starting a drag of the frame
-    ev.stopPropagation();
-    ev.preventDefault();
-  });
-
-  let pendingPos = null;
-
-  addCancel.addEventListener('click', ()=>{ addInfoBox.style.display='none'; addInfoBox.style.pointerEvents='none'; pendingPos=null });
-
-  addOk.addEventListener('click', ()=>{
-    if(!pendingPos) return; const title = titleInp.value.trim(); const text = textInp.value.trim() || '(tidak ada detail)';
-    const bullet = {id:Date.now(), relX: pendingPos.relX, relY: pendingPos.relY, number: nextNum, title, text};
-    bullets.push(bullet);
-    createBulletFromData(bullet);
-    nextNum++; updateNextNumLabel();
-    addInfoBox.style.display='none'; addInfoBox.style.pointerEvents='none'; pendingPos=null;
+    const b = {id:Date.now(), relX, relY, number: nextNum}; bullets.push(b);
+    createBulletFromData(b);
+    nextNum++;
+    showToast('Bullet #' + (nextNum-1));
+    ev.stopPropagation(); ev.preventDefault();
   });
 
   function createBulletFromData(b){
-    if(!frameEl) return; // bullets must be inside frame
-    const el = document.createElement('div');
-    el.className='bullet';
-    el.dataset.id = b.id;
-    el.textContent = b.number;
-    positionBulletEl(el, b.relX, b.relY);
-    frameEl.appendChild(el);
-    el.addEventListener('click', (ev)=>{ ev.stopPropagation(); showInfo(b); });
-  }
-  function positionBulletEl(el, relX, relY){
-    const w = frameEl.clientWidth; const h = frameEl.clientHeight; const size = 36;
-    const left = relX * w - size/2; const top = relY * h - size/2;
-    el.style.left = left + 'px'; el.style.top = top + 'px';
+    if(!frameEl) return; const el = document.createElement('div'); el.className='bullet'; el.dataset.id=b.id; el.textContent = b.number; positionBulletEl(el,b.relX,b.relY); frameEl.appendChild(el);
+    // clicking a bullet currently does nothing (reserved for later).
+    el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showToast('Klik akan menampilkan detail nanti'); });
   }
 
-  function showInfo(b){ infoTitle.textContent = b.title || ('Informasi nomor ' + b.number); infoBody.textContent = b.text; infoModal.style.display='block'; }
-  closeInfo.addEventListener('click', ()=>infoModal.style.display='none');
+  function positionBulletEl(el, relX, relY){ const w = frameEl.clientWidth; const h = frameEl.clientHeight; const size = 40; const left = relX * w - size/2; const top = relY * h - size/2; el.style.left = left + 'px'; el.style.top = top + 'px'; }
 
-  // make the frame draggable and scalable via a simple slider (for reliability)
   function frameMakeDraggable(el){
-    let dragging = false; let startX, startY, startLeft, startTop;
-    el.addEventListener('pointerdown', (ev)=>{
-      // only start drag when pointer is not on a bullet
-      if(ev.target.classList.contains('bullet')) return;
-      dragging=true; startX=ev.clientX; startY=ev.clientY; startLeft = parseFloat(el.style.left); startTop = parseFloat(el.style.top);
-      el.setPointerCapture(ev.pointerId);
-    });
-    window.addEventListener('pointermove', (ev)=>{
-      if(!dragging) return; const dx=ev.clientX-startX; const dy=ev.clientY-startY; el.style.left = (startLeft+dx)+'px'; el.style.top = (startTop+dy)+'px';
-    });
-    window.addEventListener('pointerup', (ev)=>{ if(dragging){ dragging=false; try{ ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId);}catch(e){} }});
+    let dragging=false, startX, startY, startLeft, startTop;
+    el.addEventListener('pointerdown',(ev)=>{ if(ev.target.classList && ev.target.classList.contains('bullet')) return; dragging=true; startX=ev.clientX; startY=ev.clientY; startLeft=parseFloat(el.style.left); startTop=parseFloat(el.style.top); el.setPointerCapture && el.setPointerCapture(ev.pointerId); });
+    window.addEventListener('pointermove',(ev)=>{ if(!dragging) return; const dx=ev.clientX-startX; const dy=ev.clientY-startY; el.style.left=(startLeft+dx)+'px'; el.style.top=(startTop+dy)+'px'; });
+    window.addEventListener('pointerup',(ev)=>{ if(dragging){ dragging=false; try{ ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId);}catch(e){} }});
 
-    // add a tiny scale handle UI (bottom-right)
+    // resize handle
     const handle = document.createElement('div'); handle.style.position='absolute'; handle.style.right='6px'; handle.style.bottom='6px'; handle.style.width='18px'; handle.style.height='18px'; handle.style.borderRadius='4px'; handle.style.background='rgba(255,255,255,0.8)'; handle.style.touchAction='none'; handle.style.cursor='nwse-resize'; el.appendChild(handle);
-    let resizing=false; let startW, startH, startCX, startCY;
-    handle.addEventListener('pointerdown',(ev)=>{ resizing=true; startCX=ev.clientX; startCY=ev.clientY; startW=el.clientWidth; startH=el.clientHeight; handle.setPointerCapture(ev.pointerId); ev.stopPropagation(); });
-    window.addEventListener('pointermove',(ev)=>{ if(!resizing) return; const dy = ev.clientY - startCY; const dx = ev.clientX - startCX; // use dx primarily
-      let newW = Math.max(120, startW + dx); let newH = newW * 5/4; el.style.width = newW + 'px'; el.style.height = newH + 'px'; // reposition bullets proportionally
-      // update bullet positions
-      const frameRect = el.getBoundingClientRect(); [...el.querySelectorAll('.bullet')].forEach(bEl=>{
-        const id = bEl.dataset.id; const data = bullets.find(x=>String(x.id)===String(id)); if(!data) return; positionBulletEl(bEl, data.relX, data.relY);
-      });
-    });
+    let resizing=false, startCX, startCY, startW;
+    handle.addEventListener('pointerdown',(ev)=>{ resizing=true; startCX=ev.clientX; startCY=ev.clientY; startW=el.clientWidth; handle.setPointerCapture && handle.setPointerCapture(ev.pointerId); ev.stopPropagation(); });
+    window.addEventListener('pointermove',(ev)=>{ if(!resizing) return; const dx=ev.clientX-startCX; let newW = Math.max(120, startW + dx); let newH = newW * 5/4; el.style.width=newW+'px'; el.style.height=newH+'px'; [...el.querySelectorAll('.bullet')].forEach(bEl=>{ const id=bEl.dataset.id; const data = bullets.find(x=>String(x.id)===String(id)); if(data) positionBulletEl(bEl,data.relX,data.relY); }); });
     window.addEventListener('pointerup',(ev)=>{ if(resizing){ resizing=false; try{ ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId);}catch(e){} }});
   }
-
-  // helpers
-  function createFrameFromData(frame){
-    frameEl = document.createElement('div'); frameEl.className='frame'; frameEl.style.left = frame.left; frameEl.style.top = frame.top; frameEl.style.width = frame.width; frameEl.style.height = frame.height; overlay.appendChild(frameEl); frameMakeDraggable(frameEl); placedHint.style.display='block'; hud.style.display='none';
-  }
-
-  // click outside to close modal
-  document.addEventListener('click',(ev)=>{ if(infoModal.style.display==='block'){ if(!infoModal.contains(ev.target)){ infoModal.style.display='none' } } });
 
   // fullscreen
   fsBtn.addEventListener('click', async ()=>{ try{ await document.documentElement.requestFullscreen(); }catch(e){console.warn(e)} });
