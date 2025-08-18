@@ -15,15 +15,16 @@
 </head>
 <body>
   <div class="banner">WebXR Image Tracking • Three.js</div>
-  <div class="hint">Ganti <code>POSTER_IMAGE_URL</code> dengan gambar poster kamu (harus kontras & bertekstur).</div>
+  <div class="hint">Poster rasio 4:5 • Ganti <code>POSTER_WIDTH_METERS</code> sesuai ukuran cetak (meter).</div>
   <button id="enterAR" disabled>Memeriksa dukungan AR…</button>
 
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165/build/three.module.js';
 
     // ====== KONFIGURASI YANG PERLU DIGANTI ======
-    const POSTER_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/800px-Fronalpstock_big.jpg'; // TODO: ganti ke URL poster kamu
+    const POSTER_IMAGE_URL = 'https://iili.io/Fmi7QKg.jpg'; // TODO: ganti ke URL poster kamu
     const POSTER_WIDTH_METERS = 0.6; // lebar fisik poster di dunia nyata (meter)
+    const POSTER_HEIGHT_METERS = POSTER_WIDTH_METERS * 1.25; // karena rasio 4:5 (tinggi = 1.25 × lebar)
 
     // (Opsional) tekstur/overlay yang akan ditampilkan di atas poster
     const INFO_TEXTURE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png';
@@ -90,10 +91,9 @@
         loadTexture(INFO_TEXTURE_URL)
       ]);
 
-      // Buat plane untuk representasi poster (ukuran real sesuai POSTER_WIDTH_METERS)
-      const aspect = imageBitmap.width / imageBitmap.height;
+      // Buat plane untuk representasi poster (rasio fix 4:5)
       const posterWidth = POSTER_WIDTH_METERS;
-      const posterHeight = posterWidth / aspect;
+      const posterHeight = POSTER_HEIGHT_METERS;
 
       posterPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(posterWidth, posterHeight),
@@ -161,8 +161,8 @@
   </script>
 
   <!-- Catatan:
-    1) Ganti POSTER_IMAGE_URL dengan URL poster kamu (lebih kontras/bertekstur = tracking lebih stabil).
-    2) Ganti POSTER_WIDTH_METERS sesuai ukuran fisik poster sebenarnya di dunia nyata.
+    1) Ganti POSTER_IMAGE_URL dengan URL poster kamu (rasio harus 4:5).
+    2) Ganti POSTER_WIDTH_METERS sesuai lebar poster cetak sebenarnya (meter). Tinggi dihitung otomatis.
     3) Fitur WebXR Image Tracking masih bergantung dukungan browser/perangkat. Chrome Android terbaru biasanya paling cepat mendukung.
     4) Jika perangkat tidak mendukung, pertimbangkan MindAR.js/8thWall sebagai alternatif yang lebih kompatibel.
   -->
