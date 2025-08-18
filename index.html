@@ -1,80 +1,143 @@
 <!doctype html>
-<html lang="id">
+<html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>AR Poster (Markerless Image Tracking) — Three.js + MindAR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Poster AR - Bullets 1-5 (MindAR + A-Frame)</title>
+
+  <!-- MindAR + A-Frame (versi yang kompatibel) -->
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
-    canvas { width: 100%; height: 100% }
-    .banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,.7); color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 12px; backdrop-filter: blur(6px); z-index: 10; }
-    .hint { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); color: #fff; opacity: .8; font-size: 12px; z-index: 10; }
+    body { margin:0; font-family: system-ui, sans-serif; }
+    #ui {
+      position: absolute; left: 10px; top: 10px; z-index: 20; color: white;
+      display:flex; gap:8px; align-items:center;
+      pointer-events: auto;
+    }
+    button { padding:8px 10px; border-radius:6px; border:none; background:#1f2937; color:#fff; }
   </style>
-  <!-- MindAR + Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.165/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
 </head>
 <body>
-  <div class="banner">MindAR Image Tracking • Three.js</div>
-  <div class="hint">Poster rasio 4:5 • Target inline di HTML</div>
+  <div id="ui">
+    <button id="prev">Prev</button>
+    <button id="next">Next</button>
+    <div id="status">Status: waiting for target...</div>
+  </div>
 
-  <!-- Inline target.mind (base64) -->
-  <script id="mind-target" type="application/mindar">
-    {"inputWidth":640,"inputHeight":640,"dpi":160,"targets":[{"name":"poster","image":"https://iili.io/Fmi7QKg.jpg"}]}
-  </script>
+  <!-- mindar-image attribute: imageTargetSrc -> path to targets.mind -->
+  <a-scene mindar-image="imageTargetSrc: https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind; maxTrack: 1;"
+           vr-mode-ui="enabled: false"
+           embedded
+           device-orientation-permission-ui="enabled: false"
+           background="color: #000000">
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-  <script type="module">
-    const start = async () => {
-      const targetData = document.getElementById("mind-target").textContent;
-      const blob = new Blob([targetData], {type: "application/json"});
-      const targetUrl = URL.createObjectURL(blob);
+    <!-- anchor untuk targetIndex 0 (poster pertama) -->
+    <a-entity id="posterAnchor" mindar-image-target="targetIndex: 0">
+      <!-- optional: transparent plane same aspect as poster to help positioning -->
+      <!-- MindAR maps the image to a rectangle 1 unit wide by (height) units high.
+           Poster aspect = 4:5 (width:height) -> height = (5/4) * width.
+           By default width=1 -> height = 1 * (targetHeight) */
+/>
+      <a-plane id="posterPlane" width="1" height="1.25" color="#000" opacity="0.0" position="0 0 0"></a-plane>
 
-      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-        container: document.body,
-        imageTargetSrc: targetUrl, // target inline
+      <!-- BULLETS: 5 markers. Positions are relative to poster plane (x right, y up). 
+           Center of poster is (0,0,0). width 1 spans -0.5..+0.5 -->
+      <a-entity id="bulletsGroup" position="0 0.01 0.01"> 
+        <!-- We'll create five numbered planes -->
+        <a-entity id="b1" position="-0.35 0.45 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+                  material="color: #ffffff; shader: flat; opacity: 0.95"
+                  text="value: 1; align: center; width: 1.5; color: black; wrapCount: 10; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+
+        <a-entity id="b2" position="-0.35 0.15 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+                  material="color: #ffffff; shader: flat; opacity: 0.95"
+                  text="value: 2; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+
+        <a-entity id="b3" position="-0.35 -0.15 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+                  material="color: #ffffff; shader: flat; opacity: 0.95"
+                  text="value: 3; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+
+        <a-entity id="b4" position="0.25 0.2 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+                  material="color: #ffffff; shader: flat; opacity: 0.95"
+                  text="value: 4; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+
+        <a-entity id="b5" position="0.25 -0.2 0" visible="false" geometry="primitive: plane; width:0.18; height:0.12"
+                  material="color: #ffffff; shader: flat; opacity: 0.95"
+                  text="value: 5; align: center; width: 1.5; color: black; font: https://cdn.jsdelivr.net/npm/aframe-fonts@0.1.1/fonts/roboto/Roboto-Regular.json"></a-entity>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    // Basic logic: show bullets one-by-one (prev/next) and auto-show when poster found.
+    const nextBtn = document.getElementById('next');
+    const prevBtn = document.getElementById('prev');
+    const status = document.getElementById('status');
+
+    const bulletIds = ['b1','b2','b3','b4','b5'];
+    let idx = 0;
+
+    function showIndex(i) {
+      bulletIds.forEach((id, j) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.setAttribute('visible', j === i);
+        // small pop animation when shown
+        if (j === i) {
+          el.setAttribute('scale','0.1 0.1 0.1');
+          el.removeAttribute('animation__scale');
+          el.setAttribute('animation__scale', 'property: scale; to: 1 1 1; dur: 300; easing: easeOutElastic;');
+        }
       });
-
-      const {renderer, scene, camera} = mindarThree;
-
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      scene.add(light);
-
-      const anchor = mindarThree.addAnchor(0);
-
-      const posterWidth = 0.6; // meter
-      const posterHeight = posterWidth * 1.25;
-
-      const textureLoader = new THREE.TextureLoader();
-      const posterTex = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/800px-Fronalpstock_big.jpg");
-      const posterPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(posterWidth, posterHeight),
-        new THREE.MeshBasicMaterial({map: posterTex, transparent: true})
-      );
-
-      anchor.group.add(posterPlane);
-
-      const infoTex = textureLoader.load("https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png");
-      const infoW = posterWidth * 0.6;
-      const infoPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(infoW, infoW*0.4),
-        new THREE.MeshBasicMaterial({map: infoTex, transparent: true})
-      );
-      infoPlane.position.set(0, posterHeight*0.35, 0.01);
-      anchor.group.add(infoPlane);
-
-      await mindarThree.start();
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
+      status.innerText = `Status: bullet ${i+1} / ${bulletIds.length}`;
     }
 
-    start();
-  </script>
+    nextBtn.addEventListener('click', () => {
+      idx = Math.min(idx + 1, bulletIds.length - 1);
+      showIndex(idx);
+    });
+    prevBtn.addEventListener('click', () => {
+      idx = Math.max(idx - 1, 0);
+      showIndex(idx);
+    });
 
-  <!-- Catatan:
-    - Sekarang target dimasukkan inline (JSON) di dalam HTML, jadi cukup 1 file.
-    - Ganti URL gambar di script id="mind-target" dengan poster kamu.
-  -->
+    // MindAR events: targetFound / targetLost
+    const scene = document.querySelector('a-scene');
+    scene.addEventListener('renderstart', () => {
+      // render started
+      console.log('A-Frame renderstart');
+    });
+
+    const targetEntity = document.querySelector('[mindar-image-target]');
+    targetEntity.addEventListener('targetFound', (ev) => {
+      console.log('target found', ev);
+      status.innerText = 'Status: target found — showing bullets';
+      // show first bullet when found
+      idx = 0;
+      showIndex(idx);
+    });
+
+    targetEntity.addEventListener('targetLost', (ev) => {
+      console.log('target lost', ev);
+      status.innerText = 'Status: target lost — hiding bullets';
+      // hide all
+      bulletIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('visible', false);
+      });
+    });
+
+    // Auto-detect taps on bullets (optional)
+    bulletIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('click', () => {
+        alert('Kamu klik bullet ' + id.slice(1));
+      });
+    });
+  </script>
 </body>
 </html>
