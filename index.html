@@ -2,143 +2,237 @@
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoAR Futuristik</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>GeoAR Futuristik — Fullscreen Surface Lock</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #050510; color: white; }
-    .glass {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(0,255,255,0.3);
-      box-shadow: 0 0 30px rgba(0,255,255,0.4), inset 0 0 15px rgba(0,255,255,0.2);
-      backdrop-filter: blur(14px) saturate(180%);
-      -webkit-backdrop-filter: blur(14px) saturate(180%);
-    }
-    #box.locked {
-      background: rgba(0,255,255,0.1);
-      border: 2px solid rgba(0,255,255,0.7);
-      box-shadow: 0 0 40px rgba(0,255,255,0.8);
-    }
-    .callout-arrow {
-      position: absolute; width: 0; height: 0;
-      border-left: 12px solid transparent;
-      border-right: 12px solid transparent;
-      border-top: 14px solid rgba(0,255,255,0.5);
-      filter: drop-shadow(0 0 10px rgba(0,255,255,0.7));
-      transform: translate(-50%, 0);
-    }
-    video { transform: scaleX(-1); }
-    img.futuristic {
-      border: 2px solid rgba(0,255,255,0.6);
-      border-radius: 1rem;
-      box-shadow: 0 0 25px rgba(0,255,255,0.7);
-    }
+    :root{--accent:#00ffd4;--accent2:#00d4ff}
+    html,body{height:100%;margin:0;background:#03030a;color:#e6fbf7;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    /* Fullscreen stage */
+    #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#000,#051025);}
+    video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-transform:scaleX(-1);transform:scaleX(-1)}
+
+    /* UI chrome */
+    .ui-top{position:fixed;left:16px;right:16px;top:16px;display:flex;justify-between;align-items:center;z-index:60}
+    .btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#001;border:0;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+    .glass-ui{backdrop-filter:blur(8px);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:10px}
+
+    /* initial framing box (4:5) */
+    #box{position:absolute;border-radius:12px;border:2px dashed rgba(0,255,212,0.6);box-shadow:0 8px 30px rgba(0,255,212,0.05) inset;cursor:move;z-index:40}
+    #box.locked{border-style:solid;border-color:rgba(0,255,212,0.9);box-shadow:0 0 80px rgba(0,255,212,0.18) inset}
+    #handle{position:absolute;width:18px;height:18px;border-radius:999px;background:linear-gradient(45deg,var(--accent),var(--accent2));box-shadow:0 10px 24px rgba(0,255,212,0.12);border:2px solid rgba(255,255,255,0.08);z-index:45;cursor:nwse-resize}
+
+    /* poster overlay: frozen snapshot of locked area */
+    #posterOverlay{position:absolute;border-radius:12px;overflow:hidden;z-index:42;pointer-events:none;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+    #posterOverlay img{display:block;width:100%;height:100%;object-fit:cover;filter:contrast(1.02) saturate(1.05)}
+
+    /* futuristic HUD inside locked box */
+    .hud-frame{position:absolute;inset:0;pointer-events:none}
+    .hud-corner{position:absolute;width:28px;height:28px;border:2px solid var(--accent);filter:drop-shadow(0 0 10px rgba(0,255,212,.5));}
+    .hud-corner.tl{left:-2px;top:-2px;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
+    .hud-corner.tr{right:-2px;top:-2px;border-left:0;border-bottom:0;border-radius:0 10px 0 0}
+    .hud-corner.br{right:-2px;bottom:-2px;border-left:0;border-top:0;border-radius:0 0 10px 0}
+    .hud-corner.bl{left:-2px;bottom:-2px;border-right:0;border-top:0;border-radius:0 0 0 10px}
+    .scanlines{position:absolute;inset:0;background:repeating-linear-gradient(to bottom, rgba(0,255,212,0.06) 0, rgba(0,255,212,0.06) 1px, transparent 2px, transparent 4px);opacity:.6;mix-blend-mode:screen;animation:glide 6s linear infinite}
+    @keyframes glide{0%{transform:translateY(0)}100%{transform:translateY(-8px)}}
+
+    /* callout glass HUD */
+    #callout{position:absolute;z-index:50;max-width:520px;border-radius:14px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.04));border:1px solid rgba(255,255,255,0.05);box-shadow:0 14px 40px rgba(0,0,0,0.6)}
+    .callout-arrow{position:absolute;width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:16px solid rgba(0,255,212,0.72);filter:drop-shadow(0 10px 24px rgba(0,255,212,0.12));transform:translate(-50%,0);}
+    .carousel-main{width:100%;height:300px;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.02))}
+    .carousel-main img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
+    .carousel-nav{display:flex;gap:8px;margin-top:10px;overflow-x:auto}
+    .carousel-thumb{width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);flex:0 0 auto;opacity:.75}
+    .carousel-thumb img{width:100%;height:100%;object-fit:cover}
+    .carousel-thumb.active{opacity:1;border-color:var(--accent);box-shadow:0 8px 26px rgba(0,255,212,0.18)}
+
+    /* small helpers */
+    .hidden{display:none}
+    .hint{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:rgba(0,0,0,0.5);color:#cde;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.04);z-index:80}
+    .ui-bottom{position:fixed;left:16px;right:16px;bottom:16px;display:flex;justify-between;z-index:60}
   </style>
 </head>
-<body class="min-h-screen">
-  <div class="max-w-6xl mx-auto p-4">
-    <header class="flex items-center justify-between gap-3 mb-3">
-      <h1 class="text-xl font-semibold text-cyan-400">GeoAR Futuristik</h1>
-      <button id="btnStart" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-medium">🎥 Nyalakan Kamera</button>
-    </header>
+<body>
+  <div id="stage">
+    <video id="video" playsinline autoplay muted></video>
 
-    <div id="stage" class="relative rounded-2xl overflow-hidden bg-black aspect-[16/10] select-none">
-      <video id="video" playsinline autoplay muted class="w-full h-full object-cover"></video>
+    <!-- framing box (user determines surface area) -->
+    <div id="box" style="left:100px;top:80px;width:320px;height:400px;">
+      <div class="hud-frame hidden" id="hudFrameInner"></div>
+    </div>
+    <div id="handle" style="left:420px;top:460px;width:18px;height:18px;border-radius:50%"></div>
 
-      <!-- Overlay kotak 4:5 -->
-      <div id="box" class="absolute border-2 border-cyan-400/80 rounded-lg drag-move" style="left:120px; top:80px; width:240px; height:300px;"></div>
+    <!-- poster overlay: frozen snapshot after lock -->
+    <div id="posterOverlay" class="hidden"></div>
 
-      <!-- Callout setelah konfirmasi -->
-      <div id="callout" class="hidden absolute glass rounded-xl p-4 max-w-sm">
-        <div class="drag-move flex items-start gap-3">
-          <div class="grow min-w-0">
-            <div class="text-sm font-semibold text-cyan-300">Konten Futuristik</div>
-            <div id="calloutBody" class="mt-2 flex flex-col gap-2"></div>
-          </div>
-          <button id="btnClose" class="ml-2 text-white/80 hover:text-white">✖</button>
+    <!-- callout (glass HUD) -->
+    <div id="callout" class="hidden">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(90deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:700;color:#001">HUD</div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:rgba(0,255,212,0.88);font-weight:700">BALIHO / POSTER</div>
+          <div id="calloutBody" style="margin-top:8px"></div>
         </div>
-        <div id="arrow" class="callout-arrow"></div>
+        <button id="btnClose" style="background:none;border:0;color:rgba(255,255,255,0.8);font-size:18px">✖</button>
       </div>
+      <div id="calloutArrow" class="callout-arrow"></div>
+    </div>
 
-      <div id="hint" class="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40">Geser dan ubah ukuran kotak 4:5 → Klik di kotak untuk konfirmasi</div>
+    <div class="hint" id="hint">Bingkai area (rasio 4:5). Klik kotak untuk kunci. Setelah dikunci, AR akan tetap di lokasi walau kamera digeser.</div>
+
+    <div class="ui-top">
+      <div class="glass-ui" style="display:flex;gap:8px;align-items:center">
+        <button id="btnStart" class="btn">🎥 Nyalakan Kamera</button>
+        <button id="btnConfirm" class="glass-ui" style="cursor:pointer;padding:6px 10px;border-radius:8px">✅ Konfirmasi Area</button>
+      </div>
+      <div class="glass-ui">Surface: rasio 4:5 (untuk baliho/poster)</div>
+    </div>
+
+    <div class="ui-bottom">
+      <div style="display:flex;gap:8px">
+        <button id="btnReset" class="glass-ui">♻️ Reset</button>
+      </div>
     </div>
   </div>
 
   <script>
+    // Elements
     const video = document.getElementById('video');
-    const stage = document.getElementById('stage');
     const box = document.getElementById('box');
+    const handle = document.getElementById('handle');
+    const posterOverlay = document.getElementById('posterOverlay');
     const callout = document.getElementById('callout');
     const calloutBody = document.getElementById('calloutBody');
-    const arrow = document.getElementById('arrow');
+    const calloutArrow = document.getElementById('calloutArrow');
     const btnStart = document.getElementById('btnStart');
+    const btnConfirm = document.getElementById('btnConfirm');
+    const btnReset = document.getElementById('btnReset');
     const btnClose = document.getElementById('btnClose');
     const hint = document.getElementById('hint');
 
-    let stream = null;
-    let locked = false;
-
+    // Images provided
     const images = [
-      "https://iili.io/FmPOlgR.png",
-      "https://iili.io/FmPOc0v.png",
-      "https://iili.io/FmPO7sa.png",
-      "https://iili.io/FmPO5Wg.png",
-      "https://iili.io/FmPO1Jp.png"
+      'https://iili.io/FmPOlgR.png',
+      'https://iili.io/FmPOc0v.png',
+      'https://iili.io/FmPO7sa.png',
+      'https://iili.io/FmPO5Wg.png',
+      'https://iili.io/FmPO1Jp.png'
     ];
 
+    // State
+    let stream = null;
+    let dragging=false, resizing=false, dragStart={}, resStart={}, locked=false;
+
+    // Start camera fullscreen
     btnStart.addEventListener('click', async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         video.srcObject = stream; await video.play();
-      } catch(e){
-        alert('Gagal mengakses kamera. Pastikan HTTPS & izin kamera aktif.');
-        console.error(e);
+      } catch (e) { alert('Tidak dapat mengakses kamera. Gunakan HTTPS & izinkan kamera.'); console.error(e); }
+    });
+
+    // Resize/drag behaviour for 4:5 fixed ratio
+    const RATIO_W = 4, RATIO_H = 5;
+
+    function positionHandle(){ const r=box.getBoundingClientRect(); const st=document.getElementById('stage').getBoundingClientRect(); handle.style.left = (r.right - st.left - 12) + 'px'; handle.style.top = (r.bottom - st.top - 12) + 'px'; }
+    function updateLabel(){ /* not visible now, but could show pixel size */ }
+
+    // Drag box
+    box.addEventListener('pointerdown', (e)=>{
+      if(locked) return; dragging=true; box.setPointerCapture(e.pointerId);
+      const st = document.getElementById('stage').getBoundingClientRect(); const r = box.getBoundingClientRect();
+      dragStart = {x:e.clientX, y:e.clientY, left: r.left - st.left, top: r.top - st.top};
+    });
+    box.addEventListener('pointermove', (e)=>{
+      if(!dragging||locked) return; const st = document.getElementById('stage').getBoundingClientRect();
+      let nx = dragStart.left + (e.clientX - dragStart.x);
+      let ny = dragStart.top  + (e.clientY - dragStart.y);
+      nx = Math.max(8, Math.min(st.width - box.offsetWidth - 8, nx));
+      ny = Math.max(8, Math.min(st.height - box.offsetHeight - 8, ny));
+      box.style.left = nx + 'px'; box.style.top = ny + 'px'; positionHandle();
+    });
+    box.addEventListener('pointerup', ()=>{ dragging=false }); box.addEventListener('pointercancel', ()=>{ dragging=false });
+
+    // Resize with handle
+    handle.addEventListener('pointerdown', (e)=>{ if(locked) return; resizing=true; handle.setPointerCapture(e.pointerId); const r=box.getBoundingClientRect(); const st=document.getElementById('stage').getBoundingClientRect(); resStart={x:e.clientX,y:e.clientY,w:r.width,h:r.height,left:r.left-st.left,top:r.top-st.top}; });
+    handle.addEventListener('pointermove',(e)=>{ if(!resizing||locked) return; const st=document.getElementById('stage').getBoundingClientRect(); let dx = e.clientX - resStart.x; let newW = Math.max(120, resStart.w + dx); let newH = newW * (RATIO_H/RATIO_W);
+      newW = Math.min(newW, st.width - resStart.left - 12); newH = Math.min(newH, st.height - resStart.top - 12);
+      if(newH < newW*(RATIO_H/RATIO_W)) newW = newH * (RATIO_W/RATIO_H);
+      box.style.width = newW + 'px'; box.style.height = newH + 'px'; positionHandle(); });
+    handle.addEventListener('pointerup', ()=>{ resizing=false }); handle.addEventListener('pointercancel', ()=>{ resizing=false });
+
+    // Confirm area -> lock & freeze poster overlay + callout
+    btnConfirm.addEventListener('click', async ()=>{
+      if(locked) return; locked=true; box.classList.add('locked'); hint.classList.add('hidden');
+      // capture current box area from video
+      const st = document.getElementById('stage').getBoundingClientRect(); const br = box.getBoundingClientRect();
+      const sx = (br.left - st.left); const sy = (br.top - st.top); const sw = br.width; const sh = br.height;
+
+      // draw video frame into canvas and crop
+      const canvas = document.createElement('canvas'); canvas.width = sw; canvas.height = sh; const ctx = canvas.getContext('2d');
+      // because video is mirrored horizontally we need to flip when drawing
+      ctx.translate(sw,0); ctx.scale(-1,1);
+      // draw video current frame scaled to stage size
+      try{
+        // draw the region by mapping stage->video natural resolution
+        // compute video drawing scale
+        const vRect = video.getBoundingClientRect(); const videoWidth = video.videoWidth; const videoHeight = video.videoHeight;
+        const sxRatio = videoWidth / vRect.width; const syRatio = videoHeight / vRect.height;
+        const srcX = (sx) * sxRatio; const srcY = (sy) * syRatio; const srcW = sw * sxRatio; const srcH = sh * syRatio;
+        ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, sw, sh);
+      }catch(err){
+        // fallback: draw entire video and then crop
+        ctx.drawImage(video, 0, 0, sw, sh);
+        console.warn('Crop fallback used', err);
       }
+
+      // create overlay element with the snapshot
+      const dataUrl = canvas.toDataURL('image/png'); posterOverlay.innerHTML = ''; posterOverlay.style.left = box.style.left; posterOverlay.style.top = box.style.top; posterOverlay.style.width = box.style.width; posterOverlay.style.height = box.style.height;
+      const img = new Image(); img.src = dataUrl; posterOverlay.appendChild(img); posterOverlay.classList.remove('hidden');
+
+      // disable interactions on box and handle
+      box.style.display = 'none'; handle.style.display = 'none';
+
+      // show HUD decorations inside poster overlay
+      const hf = document.createElement('div'); hf.className='hud-frame'; hf.innerHTML = `<div class='hud-corner tl'></div><div class='hud-corner tr'></div><div class='hud-corner br'></div><div class='hud-corner bl'></div><div class='scanlines'></div>`;
+      posterOverlay.appendChild(hf);
+
+      // attach callout anchored to overlay (will not move when camera feed changes)
+      showCalloutAnchored(posterOverlay);
     });
 
-    // Klik untuk konfirmasi area
-    box.addEventListener('click', () => {
-      if(locked) return;
-      locked = true;
-      box.classList.add('locked');
-      hint.classList.add('hidden');
-      showCallout();
-    });
-
-    btnClose.addEventListener('click', () => {
-      callout.classList.add('hidden');
-      box.classList.remove('locked');
-      locked = false; hint.classList.remove('hidden');
-    });
-
-    function showCallout(){
+    function showCalloutAnchored(anchorEl){
+      // build carousel content
       calloutBody.innerHTML = '';
-      images.forEach(url => {
-        const img = new Image(); img.src = url; img.className = 'futuristic w-full object-contain';
-        calloutBody.appendChild(img);
-      });
+      const main = document.createElement('div'); main.className='carousel-main'; const mainImg = document.createElement('img'); main.appendChild(mainImg);
+      const nav = document.createElement('div'); nav.className='carousel-nav';
+      let idx=0; function render(){ mainImg.src = images[idx]; Array.from(nav.children).forEach((c,i)=>c.classList.toggle('active', i===idx)); }
+      images.forEach((u,i)=>{ const t=document.createElement('div'); t.className='carousel-thumb'; const ti=new Image(); ti.src=u; t.appendChild(ti); t.addEventListener('click', ()=>{ idx=i; render(); }); nav.appendChild(t); });
+      const btnL=document.createElement('button'); btnL.textContent='‹'; btnL.className='carousel-btn left'; btnL.onclick=()=>{ idx=(idx-1+images.length)%images.length; render(); };
+      const btnR=document.createElement('button'); btnR.textContent='›'; btnR.className='carousel-btn right'; btnR.onclick=()=>{ idx=(idx+1)%images.length; render(); };
+      render(); calloutBody.appendChild(main); calloutBody.appendChild(nav);
 
-      const br = box.getBoundingClientRect();
-      const st = stage.getBoundingClientRect();
-      const targetX = br.left - st.left + br.width/2;
-      const targetY = br.top - st.top;
+      // place callout relative to anchorEl position (above center)
+      const st = document.getElementById('stage').getBoundingClientRect(); const a = anchorEl.getBoundingClientRect();
+      const targetX = a.left - st.left + a.width/2; const targetY = a.top - st.top;
+      callout.style.left = Math.max(12, Math.min(st.width - 12 - 520, targetX - 260)) + 'px'; callout.style.top = Math.max(12, targetY - 160) + 'px'; callout.classList.remove('hidden'); updateCalloutArrow(anchorEl);
 
-      callout.style.left = Math.max(8, Math.min(st.width-8-300, targetX - 150)) + 'px';
-      callout.style.top  = Math.max(8, targetY - 120) + 'px';
-      callout.classList.remove('hidden');
-      updateArrow();
+      // close handler
+      btnClose.onclick = ()=>{ callout.classList.add('hidden'); posterOverlay.classList.add('hidden'); box.style.display='block'; handle.style.display='block'; locked=false; hint.classList.remove('hidden'); }
     }
 
-    function updateArrow(){
-      const br = box.getBoundingClientRect(); const st = stage.getBoundingClientRect();
-      const tipX = br.left - st.left + br.width/2;
-      const cr = callout.getBoundingClientRect();
-      arrow.style.left = Math.max(12, Math.min(callout.offsetWidth-12, tipX - (cr.left - st.left))) + 'px';
-      arrow.style.top  = (callout.offsetHeight - 2) + 'px';
-    }
+    function updateCalloutArrow(anchorEl){ const st=document.getElementById('stage').getBoundingClientRect(); const a=anchorEl.getBoundingClientRect(); const targetX = a.left - st.left + a.width/2; const cr = callout.getBoundingClientRect(); calloutArrow.style.left = Math.max(12, Math.min(callout.offsetWidth-12, targetX - (cr.left - st.left))) + 'px'; calloutArrow.style.top = (callout.offsetHeight - 2) + 'px'; }
 
-    // Cleanup camera
-    window.addEventListener('beforeunload', () => { if(stream){ stream.getTracks().forEach(t => t.stop()); } });
+    // Reset
+    btnReset.addEventListener('click', ()=>{ locked=false; posterOverlay.classList.add('hidden'); callout.classList.add('hidden'); box.style.display='block'; handle.style.display='block'; box.classList.remove('locked'); box.style.left='100px'; box.style.top='80px'; box.style.width='320px'; box.style.height='400px'; positionHandle(); hint.classList.remove('hidden'); });
+
+    // initial layout
+    window.addEventListener('load', ()=>{ positionHandle(); // preload images
+      images.forEach(u=>{ const im=new Image(); im.src=u });
+    });
+
+    // cleanup
+    window.addEventListener('beforeunload', ()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); });
   </script>
 </body>
 </html>
