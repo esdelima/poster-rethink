@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Poster Bullets</title>
+    <title>AR Bullet Numbers - Poster 4:5</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
     <style>
@@ -14,44 +14,17 @@
             overflow: hidden;
         }
         
-        /* Fix camera zoom issue */
-        video {
-            object-fit: cover !important;
-            transform: scale(0.75) !important;
-            transform-origin: center !important;
-        }
-        
-        a-scene {
-            width: 100vw !important;
-            height: 100vh !important;
-        }
-        
         .ui-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
             z-index: 1000;
+            pointer-events: none;
         }
         
-        .instructions {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
-            font-size: 14px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .detection-frame {
+        .frame-anchor {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -59,207 +32,344 @@
             width: 280px;
             height: 350px;
             border: 3px dashed #00ff88;
-            border-radius: 15px;
-            opacity: 0.7;
-            animation: pulse 2s infinite;
+            border-radius: 12px;
+            background: rgba(0, 255, 136, 0.1);
+            transition: all 0.5s ease;
+            pointer-events: auto;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+        .frame-anchor.hidden {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.8);
         }
         
-        .status {
+        .frame-label {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff88;
+            font-size: 14px;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+        
+        .controls {
             position: absolute;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: #00ff88;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 12px;
-            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
         }
         
-        .hidden {
-            display: none;
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff88;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            pointer-events: auto;
+        }
+        
+        .camera-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .ar-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
 <body>
     <div class="ui-overlay">
-        <div class="instructions">
-            📱 Arahkan kamera ke poster rasio 4:5<br>
-            Pastikan poster terlihat jelas dalam frame
+        <div class="status" id="status">Posisikan poster dalam frame hijau</div>
+        
+        <div class="frame-anchor" id="frameAnchor">
+            <div class="frame-label">Poster 4:5 - Posisikan di sini</div>
         </div>
-        <div class="detection-frame"></div>
-        <div class="status" id="status">Mencari poster...</div>
+        
+        <div class="controls">
+            <button class="btn" onclick="startAR()">Mulai AR</button>
+            <button class="btn" onclick="hideFrame()">Sembunyikan Frame</button>
+            <button class="btn" onclick="showFrame()">Tampilkan Frame</button>
+        </div>
     </div>
 
-    <a-scene
+    <video class="camera-view" id="cameraView" autoplay muted playsinline></video>
+    
+    <a-scene 
+        class="ar-scene"
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
         vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; cameraParametersUrl: data:text/plain;charset=utf-8,{%22fov%22:60,%22aspect%22:1,%22near%22:0.1,%22far%22:1000};"
-        renderer="logarithmicDepthBuffer: true; precision: medium; antialias: true;"
-        embedded
-        gesture-detector>
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; sortObjects: true;"
+        id="arScene"
+        style="display: none;">
         
-        <!-- Marker untuk deteksi poster 4:5 -->
-        <a-marker
-            type="pattern"
-            preset="custom"
-            url="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
-            id="poster-marker"
-            smooth="true"
-            smoothCount="10"
-            smoothTolerance="0.01"
-            smoothThreshold="5">
+        <a-assets>
+            <a-mixin id="bullet-style" 
+                geometry="primitive: cylinder; height: 0.1; radius: 0.8"
+                material="color: #00ff88; metalness: 0.8; roughness: 0.2; emissive: #004422"
+                animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 4000"
+                animation__float="property: position; to: 0 0.3 0; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine">
+            </a-mixin>
             
-            <!-- Bullet Point 1 -->
-            <a-entity position="-1.5 1.5 0">
-                <a-sphere 
-                    radius="0.15" 
-                    color="#ff4757"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
-                </a-sphere>
-                <a-text 
-                    value="1" 
-                    position="0 0 0.16" 
-                    align="center" 
-                    color="white" 
-                    scale="2 2 2"
-                    font="kelsonsans">
+            <a-mixin id="number-style"
+                text="align: center; width: 12; color: #000000; font: dejavu"
+                position="0 0 0.06">
+            </a-mixin>
+            
+            <a-mixin id="glow-ring"
+                geometry="primitive: torus; radius: 1; radiusTubular: 0.05"
+                material="color: #00ff88; emissive: #00ff88; transparent: true; opacity: 0.6"
+                animation__scale="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1500; easing: easeInOutSine">
+            </a-mixin>
+        </a-assets>
+
+        <a-marker preset="hiro" id="markerHiro">
+            <!-- Bullet 1 -->
+            <a-entity position="-3 2 0">
+                <a-entity mixin="bullet-style" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 0">
+                </a-entity>
+                <a-entity mixin="glow-ring" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 200">
+                </a-entity>
+                <a-text mixin="number-style" value="1" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 400">
                 </a-text>
+                <a-entity 
+                    geometry="primitive: ring; radiusInner: 1.3; radiusOuter: 1.5"
+                    material="color: #00ff88; transparent: true; opacity: 0.3"
+                    animation__pulse="property: material.opacity; to: 0.8; dir: alternate; loop: true; dur: 1000">
+                </a-entity>
             </a-entity>
-            
-            <!-- Bullet Point 2 -->
-            <a-entity position="-0.75 0.75 0">
-                <a-sphere 
-                    radius="0.15" 
-                    color="#3742fa"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; delay: 500">
-                </a-sphere>
-                <a-text 
-                    value="2" 
-                    position="0 0 0.16" 
-                    align="center" 
-                    color="white" 
-                    scale="2 2 2"
-                    font="kelsonsans">
+
+            <!-- Bullet 2 -->
+            <a-entity position="-1.5 1 0">
+                <a-entity mixin="bullet-style" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 300">
+                </a-entity>
+                <a-entity mixin="glow-ring" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 500">
+                </a-entity>
+                <a-text mixin="number-style" value="2" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 700">
                 </a-text>
+                <a-entity 
+                    geometry="primitive: ring; radiusInner: 1.3; radiusOuter: 1.5"
+                    material="color: #00ff88; transparent: true; opacity: 0.3"
+                    animation__pulse="property: material.opacity; to: 0.8; dir: alternate; loop: true; dur: 1000; delay: 200">
+                </a-entity>
             </a-entity>
-            
-            <!-- Bullet Point 3 -->
+
+            <!-- Bullet 3 -->
             <a-entity position="0 0 0">
-                <a-sphere 
-                    radius="0.15" 
-                    color="#2ed573"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; delay: 1000">
-                </a-sphere>
-                <a-text 
-                    value="3" 
-                    position="0 0 0.16" 
-                    align="center" 
-                    color="white" 
-                    scale="2 2 2"
-                    font="kelsonsans">
+                <a-entity mixin="bullet-style" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 600">
+                </a-entity>
+                <a-entity mixin="glow-ring" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 800">
+                </a-entity>
+                <a-text mixin="number-style" value="3" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 1000">
                 </a-text>
+                <a-entity 
+                    geometry="primitive: ring; radiusInner: 1.3; radiusOuter: 1.5"
+                    material="color: #00ff88; transparent: true; opacity: 0.3"
+                    animation__pulse="property: material.opacity; to: 0.8; dir: alternate; loop: true; dur: 1000; delay: 400">
+                </a-entity>
+            </a-entity>
+
+            <!-- Bullet 4 -->
+            <a-entity position="1.5 -1 0">
+                <a-entity mixin="bullet-style" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 900">
+                </a-entity>
+                <a-entity mixin="glow-ring" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 1100">
+                </a-entity>
+                <a-text mixin="number-style" value="4" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 1300">
+                </a-text>
+                <a-entity 
+                    geometry="primitive: ring; radiusInner: 1.3; radiusOuter: 1.5"
+                    material="color: #00ff88; transparent: true; opacity: 0.3"
+                    animation__pulse="property: material.opacity; to: 0.8; dir: alternate; loop: true; dur: 1000; delay: 600">
+                </a-entity>
+            </a-entity>
+
+            <!-- Bullet 5 -->
+            <a-entity position="3 -2 0">
+                <a-entity mixin="bullet-style" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 1200">
+                </a-entity>
+                <a-entity mixin="glow-ring" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: 1400">
+                </a-entity>
+                <a-text mixin="number-style" value="5" 
+                    animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; delay: 1600">
+                </a-text>
+                <a-entity 
+                    geometry="primitive: ring; radiusInner: 1.3; radiusOuter: 1.5"
+                    material="color: #00ff88; transparent: true; opacity: 0.3"
+                    animation__pulse="property: material.opacity; to: 0.8; dir: alternate; loop: true; dur: 1000; delay: 800">
+                </a-entity>
+            </a-entity>
+
+            <!-- Connecting lines with animation -->
+            <a-entity 
+                geometry="primitive: cylinder; height: 2.2; radius: 0.02"
+                material="color: #00ff88; emissive: #004422"
+                position="-2.25 1.5 0"
+                rotation="0 0 -26"
+                animation__glow="property: material.emissive; to: #00ff88; dir: alternate; loop: true; dur: 2000">
             </a-entity>
             
-            <!-- Bullet Point 4 -->
-            <a-entity position="0.75 -0.75 0">
-                <a-sphere 
-                    radius="0.15" 
-                    color="#ffa502"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; delay: 1500">
-                </a-sphere>
-                <a-text 
-                    value="4" 
-                    position="0 0 0.16" 
-                    align="center" 
-                    color="white" 
-                    scale="2 2 2"
-                    font="kelsonsans">
-                </a-text>
+            <a-entity 
+                geometry="primitive: cylinder; height: 1.8; radius: 0.02"
+                material="color: #00ff88; emissive: #004422"
+                position="-0.75 0.5 0"
+                rotation="0 0 -28"
+                animation__glow="property: material.emissive; to: #00ff88; dir: alternate; loop: true; dur: 2000; delay: 500">
             </a-entity>
             
-            <!-- Bullet Point 5 -->
-            <a-entity position="1.5 -1.5 0">
-                <a-sphere 
-                    radius="0.15" 
-                    color="#a55eea"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; delay: 2000">
-                </a-sphere>
-                <a-text 
-                    value="5" 
-                    position="0 0 0.16" 
-                    align="center" 
-                    color="white" 
-                    scale="2 2 2"
-                    font="kelsonsans">
-                </a-text>
+            <a-entity 
+                geometry="primitive: cylinder; height: 1.8; radius: 0.02"
+                material="color: #00ff88; emissive: #004422"
+                position="0.75 -0.5 0"
+                rotation="0 0 -28"
+                animation__glow="property: material.emissive; to: #00ff88; dir: alternate; loop: true; dur: 2000; delay: 1000">
             </a-entity>
             
-            <!-- Glow effect untuk semua bullets -->
-            <a-light type="point" color="#ffffff" intensity="0.5" position="0 0 1"></a-light>
+            <a-entity 
+                geometry="primitive: cylinder; height: 2.2; radius: 0.02"
+                material="color: #00ff88; emissive: #004422"
+                position="2.25 -1.5 0"
+                rotation="0 0 -26"
+                animation__glow="property: material.emissive; to: #00ff88; dir: alternate; loop: true; dur: 2000; delay: 1500">
+            </a-entity>
         </a-marker>
-        
-        <a-entity camera look-controls-enabled="false" arjs-look-controls="smoothingFactor: 0.1"></a-entity>
+
+        <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-        // Status tracking
-        const statusEl = document.getElementById('status');
-        const marker = document.querySelector('#poster-marker');
-        
-        // Marker detection events
-        marker.addEventListener('markerFound', function() {
-            statusEl.textContent = '✅ Poster terdeteksi! Bullets muncul';
-            statusEl.style.color = '#00ff88';
-            document.querySelector('.detection-frame').style.display = 'none';
-        });
-        
-        marker.addEventListener('markerLost', function() {
-            statusEl.textContent = '🔍 Mencari poster...';
-            statusEl.style.color = '#ffa502';
-            document.querySelector('.detection-frame').style.display = 'block';
-        });
-        
-        // Camera permission handling with better constraints
-        navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                zoom: { ideal: 1.0 }
-            } 
-        })
-            .then(function(stream) {
-                statusEl.textContent = '📷 Kamera aktif - Arahkan ke poster';
+        let arStarted = false;
+        let cameraStream = null;
+
+        // Initialize camera
+        async function initCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
                 
-                // Apply video constraints to reduce zoom
-                const video = document.querySelector('video');
-                if (video) {
-                    video.style.objectFit = 'cover';
-                    video.style.transform = 'scale(0.8)';
-                }
-            })
-            .catch(function(err) {
-                statusEl.textContent = '❌ Izinkan akses kamera';
-                statusEl.style.color = '#ff4757';
-            });
-        
-        // Touch interaction for mobile
-        document.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-        }, { passive: false });
-        
-        // Optimize for mobile performance
-        if (window.DeviceOrientationEvent) {
-            window.addEventListener('deviceorientation', function(e) {
-                // Handle device orientation for better AR tracking
-            });
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraView');
+                video.srcObject = cameraStream;
+                
+                document.getElementById('status').textContent = 'Kamera siap - Posisikan poster dalam frame';
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                document.getElementById('status').textContent = 'Error: Tidak dapat mengakses kamera';
+            }
         }
+
+        function startAR() {
+            if (!arStarted) {
+                const arScene = document.getElementById('arScene');
+                const cameraView = document.getElementById('cameraView');
+                
+                arScene.style.display = 'block';
+                cameraView.style.display = 'none';
+                
+                arStarted = true;
+                document.getElementById('status').textContent = 'AR Aktif - Arahkan ke marker untuk melihat bullet numbers';
+                
+                // Add marker detection events
+                const marker = document.querySelector('#markerHiro');
+                marker.addEventListener('markerFound', function() {
+                    document.getElementById('status').textContent = 'Marker terdeteksi! Bullet numbers muncul...';
+                });
+                
+                marker.addEventListener('markerLost', function() {
+                    document.getElementById('status').textContent = 'Marker hilang - Arahkan kembali ke poster';
+                });
+            }
+        }
+
+        function hideFrame() {
+            const frame = document.getElementById('frameAnchor');
+            frame.classList.add('hidden');
+            document.getElementById('status').textContent = 'Frame disembunyikan - AR tetap aktif';
+        }
+
+        function showFrame() {
+            const frame = document.getElementById('frameAnchor');
+            frame.classList.remove('hidden');
+            document.getElementById('status').textContent = 'Frame ditampilkan - Posisikan poster di dalam frame';
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            initCamera();
+            
+            // Add touch events for mobile
+            document.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+        });
+
+        // Handle orientation changes
+        window.addEventListener('orientationchange', function() {
+            setTimeout(function() {
+                if (arStarted) {
+                    location.reload();
+                }
+            }, 500);
+        });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711dfce960b9c44',t:'MTc1NTUyNDk2My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711e9774552fd21',t:'MTc1NTUyNTM1OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
