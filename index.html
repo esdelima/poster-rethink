@@ -1,421 +1,296 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Poster Interactive</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #000;
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        #container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        #frame {
-            position: absolute;
-            border: 3px solid #00ff88;
-            border-radius: 12px;
-            background: rgba(0, 255, 136, 0.1);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-            pointer-events: all;
-            cursor: move;
-            transition: all 0.3s ease;
-        }
-
-        #frame.locked {
-            border-color: #ff6b35;
-            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
-            cursor: default;
-        }
-
-        .point {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(45deg, #ff6b35, #f7931e);
-            border: 3px solid white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            transform: scale(0);
-            animation: popIn 0.5s ease forwards;
-            z-index: 10;
-        }
-
-        @keyframes popIn {
-            to {
-                transform: scale(1);
-            }
-        }
-
-        .point:hover {
-            transform: scale(1.2);
-            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-        }
-
-        .point:active {
-            transform: scale(0.9);
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 20;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn.danger {
-            background: linear-gradient(45deg, #ff6b35, #f7931e);
-        }
-
-        #imageModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-
-        #modalContent {
-            max-width: 90%;
-            max-height: 90%;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        #closeModal {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-        }
-
-        #instructions {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            z-index: 15;
-            backdrop-filter: blur(10px);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AR Poster Placer — Poster 4:5 (Improved Placement)</title>
+  <style>
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, system-ui, Arial}
+    #container{position:fixed;inset:0;background:#000}
+    #ar-button{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;padding:12px 18px;border-radius:10px;background:#0066ff;color:#fff;border:none;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:30}
+    #hint{position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.6);color:#fff;padding:8px 12px;border-radius:8px;font-size:14px;z-index:30}
+    #preview{position:fixed;right:12px;top:12px;background:#fff;padding:12px;border-radius:10px;max-width:320px;box-shadow:0 8px 20px rgba(0,0,0,0.12);color:#111;z-index:30}
+    #controls{position:fixed;left:12px;bottom:20px;background:rgba(255,255,255,0.95);padding:10px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,0.12);display:flex;gap:8px;align-items:center;z-index:30}
+    #controls button{padding:8px 10px;border-radius:8px;border:1px solid #ddd;background:#fff}
+    #scaleSlider{width:140px}
+    #exitBtn{position:fixed;right:12px;bottom:20px;padding:8px 12px;border-radius:8px;background:#fff;border:none;z-index:30}
+    canvas#posterCanvas{display:none}
+  </style>
 </head>
 <body>
-    <div id="container">
-        <video id="video" autoplay muted playsinline></video>
-        
-        <div id="overlay">
-            <div id="instructions">
-                📱 Gerakkan frame hijau ke posisi poster, lalu tekan "Kunci Posisi" untuk menempatkan titik interaktif
-            </div>
-            
-            <div id="frame"></div>
-        </div>
+  <div id="container"></div>
+  <div id="hint">AR tanpa marker — arahkan kamera ke permukaan datar. Ketuk layar untuk menempatkan atau memindahkan poster. Gunakan kontrol untuk skala/rotasi/hapus.</div>
+  <div id="preview">
+    <h4 style="margin:0 0 8px 0">Preview Poster (4:5)</h4>
+    <img id="previewImg" alt="poster preview" style="width:160px;height:200px;object-fit:cover;border-radius:6px;border:1px solid #eee;" />
+    <p style="margin:8px 0 0 0;font-size:13px;color:#444">Poster menampilkan 5 informasi futuristik. Ketuk <strong>Enter AR</strong> untuk menempatkannya di dunia nyata.</p>
+  </div>
+  <button id="ar-button">Enter AR</button>
+  <button id="exitBtn" style="display:none">Exit AR</button>
 
-        <div id="controls">
-            <button class="btn" id="lockBtn">Kunci Posisi</button>
-            <button class="btn danger hidden" id="resetBtn">Reset</button>
-        </div>
-    </div>
+  <div id="controls" style="display:none">
+    <button id="btnRotateLeft" title="Rotate left">⟲</button>
+    <button id="btnRotateRight" title="Rotate right">⟳</button>
+    <label style="font-size:13px">Scale</label>
+    <input id="scaleSlider" type="range" min="0.3" max="2.0" step="0.05" value="1">
+    <button id="btnRemove" style="background:#fee;">Hapus</button>
+  </div>
 
-    <div id="imageModal">
-        <button id="closeModal">&times;</button>
-        <img id="modalContent" src="" alt="Interactive Content">
-    </div>
+  <!-- hidden canvas used to create poster texture -->
+  <canvas id="posterCanvas" width="800" height="1000"></canvas>
 
-    <script>
-        class ARPosterApp {
-            constructor() {
-                this.video = document.getElementById('video');
-                this.frame = document.getElementById('frame');
-                this.overlay = document.getElementById('overlay');
-                this.lockBtn = document.getElementById('lockBtn');
-                this.resetBtn = document.getElementById('resetBtn');
-                this.instructions = document.getElementById('instructions');
-                this.imageModal = document.getElementById('imageModal');
-                this.modalContent = document.getElementById('modalContent');
-                this.closeModal = document.getElementById('closeModal');
-                
-                this.isLocked = false;
-                this.isDragging = false;
-                this.points = [];
-                
-                // Sample image URLs for the 5 points
-                this.imageUrls = [
-                    'https://picsum.photos/400/600?random=1',
-                    'https://picsum.photos/400/600?random=2', 
-                    'https://picsum.photos/400/600?random=3',
-                    'https://picsum.photos/400/600?random=4',
-                    'https://picsum.photos/400/600?random=5'
-                ];
-                
-                this.init();
-            }
+  <!-- Three.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script>
+    // --- Content for the poster (5 informasi futuristik) ---
+    const infos = [
+      {title: 'Kota Terapung', body: 'Kota modular terapung dengan pertanian vertikal & energi terbarukan.'},
+      {title: 'Transportasi Holografik', body: 'Rute holografis untuk navigasi pejalan kaki & drone.'},
+      {title: 'Antarmuka Otak-Komputer', body: 'Interaksi non-invasif untuk kontrol perangkat & input teks.'},
+      {title: 'Energi Fusi Mini', body: 'Generator fusi skala kecil memberi listrik bersih tanpa emisi.'},
+      {title: 'AI Kesehatan Pribadi', body: 'AI yang memantau biometrik real-time & pencegahan proaktif.'}
+    ];
 
-            async init() {
-                await this.setupCamera();
-                this.setupFrame();
-                this.setupEventListeners();
-            }
+    // Draw poster to canvas (aspect ratio 4:5 => 800x1000)
+    function drawPoster(){
+      const c = document.getElementById('posterCanvas');
+      const ctx = c.getContext('2d');
+      // background
+      ctx.fillStyle = '#0f1724';
+      ctx.fillRect(0,0,c.width,c.height);
+      // header
+      ctx.fillStyle = '#00d1ff';
+      ctx.fillRect(0,0,c.width,120);
+      ctx.fillStyle = '#021024';
+      ctx.font = 'bold 44px sans-serif';
+      ctx.fillText('5 Informasi Futuristik', 24, 78);
 
-            async setupCamera() {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { 
-                            facingMode: 'environment',
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
-                        }
-                    });
-                    this.video.srcObject = stream;
-                } catch (error) {
-                    console.error('Error accessing camera:', error);
-                    alert('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
-                }
-            }
+      // draw each info block
+      const margin = 24;
+      const blockW = c.width - margin*2;
+      const blockH = (c.height - 160 - margin*4) / 5; // space for 5 blocks
+      ctx.font = 'bold 26px sans-serif';
+      ctx.textBaseline = 'top';
+      for (let i=0;i<infos.length;i++){
+        const x = margin;
+        const y = 140 + margin + i*(blockH + margin);
+        // block bg
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(x,y,blockW,blockH);
+        // accent bar
+        ctx.fillStyle = ['#ff7a18','#7b61ff','#00d1ff','#14b8a6','#f97316'][i%5];
+        ctx.fillRect(x, y, 8, blockH);
+        // title
+        ctx.fillStyle = '#fff';
+        ctx.font = '600 22px sans-serif';
+        ctx.fillText((i+1)+'. '+infos[i].title, x+16, y+10);
+        // body (wrap)
+        ctx.fillStyle = '#e6eef8';
+        ctx.font = '16px sans-serif';
+        wrapText(ctx, infos[i].body, x+16, y+40, blockW-32, 20);
+      }
+    }
 
-            setupFrame() {
-                // Set initial frame size (4:5 ratio)
-                const frameWidth = Math.min(window.innerWidth * 0.6, 240);
-                const frameHeight = frameWidth * 1.25; // 4:5 ratio
-                
-                this.frame.style.width = frameWidth + 'px';
-                this.frame.style.height = frameHeight + 'px';
-                this.frame.style.left = (window.innerWidth - frameWidth) / 2 + 'px';
-                this.frame.style.top = (window.innerHeight - frameHeight) / 2 + 'px';
-            }
-
-            setupEventListeners() {
-                // Frame dragging
-                this.frame.addEventListener('touchstart', this.handleTouchStart.bind(this));
-                this.frame.addEventListener('touchmove', this.handleTouchMove.bind(this));
-                this.frame.addEventListener('touchend', this.handleTouchEnd.bind(this));
-                
-                this.frame.addEventListener('mousedown', this.handleMouseDown.bind(this));
-                document.addEventListener('mousemove', this.handleMouseMove.bind(this));
-                document.addEventListener('mouseup', this.handleMouseUp.bind(this));
-
-                // Buttons
-                this.lockBtn.addEventListener('click', this.lockPosition.bind(this));
-                this.resetBtn.addEventListener('click', this.reset.bind(this));
-                
-                // Modal
-                this.closeModal.addEventListener('click', this.hideModal.bind(this));
-                this.imageModal.addEventListener('click', (e) => {
-                    if (e.target === this.imageModal) this.hideModal();
-                });
-
-                // Prevent context menu on long press
-                document.addEventListener('contextmenu', e => e.preventDefault());
-            }
-
-            handleTouchStart(e) {
-                if (this.isLocked) return;
-                e.preventDefault();
-                this.isDragging = true;
-                const touch = e.touches[0];
-                this.startX = touch.clientX - this.frame.offsetLeft;
-                this.startY = touch.clientY - this.frame.offsetTop;
-            }
-
-            handleTouchMove(e) {
-                if (!this.isDragging || this.isLocked) return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                this.moveFrame(touch.clientX - this.startX, touch.clientY - this.startY);
-            }
-
-            handleTouchEnd(e) {
-                this.isDragging = false;
-            }
-
-            handleMouseDown(e) {
-                if (this.isLocked) return;
-                this.isDragging = true;
-                this.startX = e.clientX - this.frame.offsetLeft;
-                this.startY = e.clientY - this.frame.offsetTop;
-            }
-
-            handleMouseMove(e) {
-                if (!this.isDragging || this.isLocked) return;
-                this.moveFrame(e.clientX - this.startX, e.clientY - this.startY);
-            }
-
-            handleMouseUp(e) {
-                this.isDragging = false;
-            }
-
-            moveFrame(x, y) {
-                const maxX = window.innerWidth - this.frame.offsetWidth;
-                const maxY = window.innerHeight - this.frame.offsetHeight;
-                
-                x = Math.max(0, Math.min(x, maxX));
-                y = Math.max(0, Math.min(y, maxY));
-                
-                this.frame.style.left = x + 'px';
-                this.frame.style.top = y + 'px';
-            }
-
-            lockPosition() {
-                this.isLocked = true;
-                this.frame.classList.add('locked');
-                this.lockBtn.classList.add('hidden');
-                this.resetBtn.classList.remove('hidden');
-                this.instructions.classList.add('hidden');
-                
-                this.createPoints();
-            }
-
-            createPoints() {
-                const frameRect = this.frame.getBoundingClientRect();
-                const padding = 20;
-                
-                // Create 5 points with random positions inside the frame
-                for (let i = 0; i < 5; i++) {
-                    const point = document.createElement('div');
-                    point.className = 'point';
-                    point.textContent = i + 1;
-                    
-                    // Random position within frame bounds (with padding)
-                    const x = Math.random() * (frameRect.width - 80) + padding;
-                    const y = Math.random() * (frameRect.height - 80) + padding;
-                    
-                    point.style.left = x + 'px';
-                    point.style.top = y + 'px';
-                    point.style.animationDelay = (i * 0.1) + 's';
-                    
-                    point.addEventListener('click', () => this.showImage(i));
-                    
-                    this.frame.appendChild(point);
-                    this.points.push(point);
-                }
-            }
-
-            showImage(index) {
-                this.modalContent.src = this.imageUrls[index];
-                this.imageModal.style.display = 'flex';
-                
-                // Add loading effect
-                this.modalContent.style.opacity = '0';
-                this.modalContent.onload = () => {
-                    this.modalContent.style.transition = 'opacity 0.3s ease';
-                    this.modalContent.style.opacity = '1';
-                };
-            }
-
-            hideModal() {
-                this.imageModal.style.display = 'none';
-            }
-
-            reset() {
-                this.isLocked = false;
-                this.frame.classList.remove('locked');
-                this.lockBtn.classList.remove('hidden');
-                this.resetBtn.classList.add('hidden');
-                this.instructions.classList.remove('hidden');
-                
-                // Remove all points
-                this.points.forEach(point => point.remove());
-                this.points = [];
-                
-                // Reset frame position
-                this.setupFrame();
-            }
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+      const words = text.split(' ');
+      let line = '';
+      for (let n=0;n<words.length;n++){
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n>0){
+          ctx.fillText(line, x, y);
+          line = words[n] + ' ';
+          y += lineHeight;
+        } else {
+          line = testLine;
         }
+      }
+      ctx.fillText(line, x, y);
+    }
 
-        // Initialize the app when page loads
-        window.addEventListener('load', () => {
-            new ARPosterApp();
-        });
+    drawPoster();
+    // set preview image
+    document.getElementById('previewImg').src = document.getElementById('posterCanvas').toDataURL();
 
-        // Handle orientation changes
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                location.reload();
-            }, 500);
-        });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97116136265097fb',t:'MTc1NTUxOTc3OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    // --- WebXR / Three.js AR placement ---
+    let renderer, scene, camera, xrSession, referenceSpace, hitTestSource, reticle;
+    let placedPoster = null; // single poster instance
+
+    const container = document.getElementById('container');
+    const arButton = document.getElementById('ar-button');
+    const exitBtn = document.getElementById('exitBtn');
+    const controls = document.getElementById('controls');
+    const btnRotateLeft = document.getElementById('btnRotateLeft');
+    const btnRotateRight = document.getElementById('btnRotateRight');
+    const scaleSlider = document.getElementById('scaleSlider');
+    const btnRemove = document.getElementById('btnRemove');
+
+    function initThree(){
+      renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      renderer.xr.setReferenceSpaceType('local');
+      container.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+
+      // light
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
+
+      // reticle to show hit test
+      const geometry = new THREE.RingGeometry(0.07, 0.095, 32).rotateX(-Math.PI/2);
+      const material = new THREE.MeshBasicMaterial({color:0x00ffcc});
+      reticle = new THREE.Mesh(geometry, material);
+      reticle.matrixAutoUpdate = false;
+      reticle.visible = false;
+      scene.add(reticle);
+
+      window.addEventListener('resize', ()=>{
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function makePosterMesh(){
+      const canvas = document.getElementById('posterCanvas');
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+      const aspect = canvas.width / canvas.height; // 0.8 (4:5)
+      const width = 0.6; // meters default
+      const height = width / aspect; // maintain 4:5
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const material = new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide});
+      const mesh = new THREE.Mesh(geometry, material);
+      // add a slim border using a second slightly larger plane behind
+      const frameGeo = new THREE.PlaneGeometry(width*1.02, height*1.02);
+      const frameMat = new THREE.MeshBasicMaterial({color:0x021024});
+      const frame = new THREE.Mesh(frameGeo, frameMat);
+      frame.position.z = -0.001; // behind
+      mesh.add(frame);
+      mesh.userData.scaleFactor = 1;
+      return mesh;
+    }
+
+    function placeOrMovePosterAt(matrix){
+      if (!reticle.visible) return;
+      if (!placedPoster){
+        placedPoster = makePosterMesh();
+        placedPoster.position.setFromMatrixPosition(matrix);
+        alignPosterToCamera(placedPoster);
+        scene.add(placedPoster);
+        controls.style.display = 'flex';
+        scaleSlider.value = 1;
+      } else {
+        // smoothly move existing poster to new position
+        const newPos = new THREE.Vector3().setFromMatrixPosition(matrix);
+        placedPoster.position.copy(newPos);
+        alignPosterToCamera(placedPoster);
+      }
+    }
+
+    function alignPosterToCamera(mesh){
+      // rotate the poster to face the camera horizontally (preserve upright)
+      const cameraWorld = new THREE.Vector3();
+      renderer.xr.getCamera(camera).getWorldPosition(cameraWorld);
+      const direction = new THREE.Vector3().subVectors(cameraWorld, mesh.position);
+      const yaw = Math.atan2(direction.x, direction.z);
+      mesh.rotation.set(0, yaw + Math.PI, 0);
+    }
+
+    async function startXR(){
+      if (!navigator.xr) { alert('WebXR tidak tersedia pada perangkat ini.'); return; }
+      try{
+        xrSession = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test','local-floor'] });
+      }catch(e){ alert('Gagal memulai sesi AR: '+e.message); return; }
+
+      initThree();
+      renderer.xr.setSession(xrSession);
+
+      referenceSpace = await xrSession.requestReferenceSpace('local');
+
+      const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+      hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
+
+      xrSession.addEventListener('end', onSessionEnded);
+
+      // handle select (tap) to place/move poster
+      xrSession.addEventListener('select', (ev)=>{
+        if (reticle.visible){
+          placeOrMovePosterAt(reticle.matrix);
+        }
+      });
+
+      // render loop
+      const onXRFrame = (time, frame) => {
+        xrSession.requestAnimationFrame(onXRFrame);
+        const pose = frame.getViewerPose(referenceSpace);
+        if (pose){
+          const hitTestResults = frame.getHitTestResults(hitTestSource);
+          if (hitTestResults.length > 0){
+            const hit = hitTestResults[0];
+            const hitPose = hit.getPose(referenceSpace);
+            reticle.visible = true;
+            reticle.matrix.fromArray(hitPose.transform.matrix);
+          } else {
+            reticle.visible = false;
+          }
+        }
+        renderer.render(scene, camera);
+      };
+
+      xrSession.requestAnimationFrame(onXRFrame);
+
+      arButton.style.display = 'none';
+      exitBtn.style.display = 'block';
+    }
+
+    function onSessionEnded(){
+      if (renderer && renderer.domElement){
+        try{ container.removeChild(renderer.domElement); }catch(e){}
+      }
+      // cleanup
+      renderer = null; scene = null; camera = null; reticle = null; hitTestSource = null;
+      xrSession = null;
+      arButton.style.display = 'block';
+      exitBtn.style.display = 'none';
+      controls.style.display = 'none';
+      placedPoster = null;
+    }
+
+    arButton.addEventListener('click', async ()=>{ await startXR(); });
+    exitBtn.addEventListener('click', ()=>{ if (xrSession) xrSession.end(); });
+
+    // Controls: rotate/scale/remove
+    btnRotateLeft.addEventListener('click', ()=>{ if (!placedPoster) return; placedPoster.rotation.y += 0.15; });
+    btnRotateRight.addEventListener('click', ()=>{ if (!placedPoster) return; placedPoster.rotation.y -= 0.15; });
+    scaleSlider.addEventListener('input', ()=>{
+      if (!placedPoster) return;
+      const s = parseFloat(scaleSlider.value);
+      placedPoster.scale.setScalar(s);
+      placedPoster.userData.scaleFactor = s;
+    });
+    btnRemove.addEventListener('click', ()=>{
+      if (!placedPoster) return;
+      scene.remove(placedPoster);
+      placedPoster = null;
+      controls.style.display = 'none';
+    });
+
+    // Basic feature-detection: hide AR button if WebXR not available
+    (async function checkXR(){
+      if (navigator.xr && navigator.xr.isSessionSupported){
+        try{
+          const supported = await navigator.xr.isSessionSupported('immersive-ar');
+          if (!supported){ document.getElementById('hint').textContent = 'AR tidak didukung di perangkat ini. Preview tersedia.'; arButton.disabled=true; }
+        }catch(e){ console.warn(e); }
+      } else {
+        document.getElementById('hint').textContent = 'WebXR tidak tersedia. Gunakan perangkat mobile modern (Chrome/Edge) untuk AR.';
+        arButton.disabled = true;
+      }
+    })();
+
+  </script>
+</body>
 </html>
