@@ -1,1 +1,313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GeoAR Sederhana – Callout di Area Segi Empat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Lapisan kaca (glassmorphism) */
+    .glass {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(12px) saturate(140%);
+      -webkit-backdrop-filter: blur(12px) saturate(140%);
+    }
 
+    /* Overlay untuk area segi empat yang bisa diseret */
+    .quad {
+      position: absolute;
+      border: 2px dashed rgba(255,255,255,.9);
+      pointer-events: none; /* biar tidak mengganggu drag handle */
+    }
+    .handle {
+      position: absolute;
+      width: 16px; height: 16px;
+      border-radius: 9999px;
+      background: #22d3ee;
+      border: 2px solid white;
+      box-shadow: 0 4px 12px rgba(0,0,0,.35);
+      cursor: grab; pointer-events: auto;
+    }
+    .handle:active { cursor: grabbing; }
+
+    /* Panah kecil penghubung callout ke target */
+    .callout-arrow {
+      position: absolute; width: 0; height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-top: 12px solid rgba(255,255,255,0.25);
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,.25));
+      transform: translate(-50%, 0);
+    }
+
+    /* Area sentuh untuk menggeser callout */
+    .drag-move { cursor: move; }
+
+    video { transform: scaleX(-1); } /* mirror agar lebih natural saat membidik */
+  </style>
+</head>
+<body class="min-h-screen bg-slate-900 text-white">
+  <div class="max-w-6xl mx-auto p-4">
+    <header class="flex items-center justify-between gap-3 mb-3">
+      <h1 class="text-xl font-semibold">GeoAR Sederhana – Callout di Area Segi Empat</h1>
+      <div class="flex items-center gap-2">
+        <button id="btnStart" class="px-3 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-medium">🎥 Nyalakan Kamera</button>
+        <button id="btnLock" disabled class="px-3 py-2 rounded-lg bg-emerald-500/40 text-white font-medium border border-emerald-400/40">🔒 Kunci Area</button>
+        <button id="btnReset" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">♻️ Reset</button>
+      </div>
+    </header>
+
+    <!-- Panel input konten AR (teks/gambar) -->
+    <section class="glass rounded-2xl p-4 mb-3">
+      <div class="grid md:grid-cols-3 gap-4 items-end">
+        <div>
+          <label class="block text-sm mb-1 opacity-90">Jenis Konten</label>
+          <select id="contentType" class="w-full bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2">
+            <option value="text">Teks</option>
+            <option value="image">Gambar (URL)</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm mb-1 opacity-90">Isi / URL Gambar</label>
+          <input id="contentValue" type="text" placeholder="Tulis teks AR atau tempel URL gambar (https://...)" class="w-full bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2"/>
+        </div>
+      </div>
+      <p class="text-xs mt-2 opacity-70">Tips: arahkan kamera ke gambar/poster, atur 4 sudut area, lalu klik <b>Kunci Area</b> untuk menempelkan callout.</p>
+    </section>
+
+    <!-- Kanvas kamera + overlay -->
+    <div id="stage" class="relative rounded-2xl overflow-hidden bg-black aspect-[16/10]">
+      <video id="video" playsinline autoplay muted class="w-full h-full object-cover"></video>
+
+      <!-- Overlay kuadrilateral & handle -->
+      <div id="quad" class="quad hidden"></div>
+      <div id="h1" class="handle hidden" data-handle="h1"></div>
+      <div id="h2" class="handle hidden" data-handle="h2"></div>
+      <div id="h3" class="handle hidden" data-handle="h3"></div>
+      <div id="h4" class="handle hidden" data-handle="h4"></div>
+
+      <!-- Callout (muncul setelah dikunci) -->
+      <div id="callout" class="hidden absolute glass rounded-xl p-3 max-w-xs">
+        <div class="drag-move flex items-start gap-2">
+          <div class="shrink-0 rounded-lg bg-white/20 w-8 h-8 grid place-items-center text-sm">AR</div>
+          <div class="grow min-w-0">
+            <div class="text-sm font-semibold leading-tight">Konten AR</div>
+            <div id="calloutBody" class="mt-1 text-sm opacity-90 break-words"></div>
+          </div>
+          <button id="btnClose" class="ml-2 text-white/80 hover:text-white">✖</button>
+        </div>
+        <div id="arrow" class="callout-arrow"></div>
+      </div>
+
+      <!-- Bantuan kecil -->
+      <div id="hint" class="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full bg-black/50">Seret titik biru untuk membingkai area</div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const stage = document.getElementById('stage');
+    const quad = document.getElementById('quad');
+    const handles = [
+      document.getElementById('h1'),
+      document.getElementById('h2'),
+      document.getElementById('h3'),
+      document.getElementById('h4'),
+    ];
+    const btnStart = document.getElementById('btnStart');
+    const btnLock = document.getElementById('btnLock');
+    const btnReset = document.getElementById('btnReset');
+    const contentType = document.getElementById('contentType');
+    const contentValue = document.getElementById('contentValue');
+    const callout = document.getElementById('callout');
+    const calloutBody = document.getElementById('calloutBody');
+    const btnClose = document.getElementById('btnClose');
+    const arrow = document.getElementById('arrow');
+    const hint = document.getElementById('hint');
+
+    let stream = null;
+    let locked = false;
+
+    // Posisi sudut (dalam px) relatif terhadap stage
+    let corners = [
+      {x: 140, y: 100}, // h1 - kiri atas
+      {x: 460, y: 100}, // h2 - kanan atas
+      {x: 460, y: 300}, // h3 - kanan bawah
+      {x: 140, y: 300}, // h4 - kiri bawah
+    ];
+
+    // Start camera
+    btnStart.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        initOverlay();
+      } catch (e) {
+        alert('Gagal mengakses kamera. Pastikan situs menggunakan HTTPS & izin kamera diaktifkan.');
+        console.error(e);
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      locked = false;
+      btnLock.disabled = false;
+      callout.classList.add('hidden');
+      hint.classList.remove('hidden');
+      showHandles(true);
+      layoutOverlay();
+    });
+
+    btnLock.addEventListener('click', () => {
+      locked = true;
+      btnLock.disabled = true;
+      showHandles(false);
+      hint.classList.add('hidden');
+      showCallout();
+    });
+
+    btnClose.addEventListener('click', () => {
+      callout.classList.add('hidden');
+      locked = false;
+      btnLock.disabled = false;
+      showHandles(true);
+      hint.classList.remove('hidden');
+    });
+
+    // Drag handles
+    let dragging = null;
+    let offset = {x:0,y:0};
+
+    handles.forEach((h, idx) => {
+      h.addEventListener('pointerdown', (e) => {
+        dragging = idx; h.setPointerCapture(e.pointerId);
+        offset.x = e.clientX - h.offsetLeft;
+        offset.y = e.clientY - h.offsetTop;
+      });
+      h.addEventListener('pointermove', (e) => {
+        if(dragging === idx && !locked){
+          const rect = stage.getBoundingClientRect();
+          let nx = e.clientX - rect.left - offset.x + h.offsetWidth/2;
+          let ny = e.clientY - rect.top - offset.y + h.offsetHeight/2;
+          // batasi di dalam stage
+          nx = Math.max(0, Math.min(rect.width, nx));
+          ny = Math.max(0, Math.min(rect.height, ny));
+          corners[idx] = {x: nx, y: ny};
+          layoutOverlay();
+        }
+      });
+      h.addEventListener('pointerup', () => dragging = null);
+      h.addEventListener('pointercancel', () => dragging = null);
+    });
+
+    // Pindahkan callout dengan drag
+    let draggingCallout = false; let calloutOffset = {x:0,y:0};
+    callout.querySelector('.drag-move').addEventListener('pointerdown', (e) => {
+      draggingCallout = true; callout.setPointerCapture(e.pointerId);
+      const r = callout.getBoundingClientRect();
+      calloutOffset.x = e.clientX - r.left; calloutOffset.y = e.clientY - r.top;
+    });
+    callout.querySelector('.drag-move').addEventListener('pointermove', (e) => {
+      if(!draggingCallout) return;
+      const st = stage.getBoundingClientRect();
+      const x = e.clientX - st.left - calloutOffset.x;
+      const y = e.clientY - st.top - calloutOffset.y;
+      callout.style.left = Math.max(8, Math.min(st.width-8-callout.offsetWidth, x)) + 'px';
+      callout.style.top  = Math.max(8, Math.min(st.height-8-callout.offsetHeight, y)) + 'px';
+      updateArrow();
+    });
+    callout.querySelector('.drag-move').addEventListener('pointerup', () => draggingCallout = false);
+    callout.querySelector('.drag-move').addEventListener('pointercancel', () => draggingCallout = false);
+
+    // Layout awal overlay setelah video siap ukuran
+    function initOverlay(){
+      // Tampilkan handle & kotak
+      showHandles(true);
+      btnLock.disabled = false;
+      layoutOverlay();
+      // Resize handler agar overlay tetap proporsional
+      new ResizeObserver(() => layoutOverlay()).observe(stage);
+    }
+
+    function showHandles(show){
+      [quad, ...handles].forEach(el => el.classList.toggle('hidden', !show && el===quad ? false : !show));
+      // quad selalu terlihat bila show==true; disembunyikan hanya saat reset tanpa kamera
+      quad.classList.toggle('hidden', !show && !locked);
+    }
+
+    function layoutOverlay(){
+      const r = stage.getBoundingClientRect();
+      // Bila sudut belum pernah disesuaikan, posisikan di tengah relatif ke stage saat ini
+      if(!video.srcObject){ return; }
+
+      // Gambar ulang: set posisi handle
+      handles.forEach((h, i) => {
+        h.style.left = (corners[i].x - h.offsetWidth/2) + 'px';
+        h.style.top  = (corners[i].y - h.offsetHeight/2) + 'px';
+      });
+
+      // Gambar batas quad sebagai bounding box minimal yang mencakup empat sudut
+      const xs = corners.map(c => c.x); const ys = corners.map(c => c.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      quad.style.left = minX + 'px';
+      quad.style.top  = minY + 'px';
+      quad.style.width  = (maxX - minX) + 'px';
+      quad.style.height = (maxY - minY) + 'px';
+    }
+
+    function showCallout(){
+      // Muat konten: teks atau gambar
+      const type = contentType.value;
+      const val = contentValue.value.trim();
+      calloutBody.innerHTML = '';
+      if(type === 'image' && val){
+        const img = new Image(); img.src = val; img.alt = 'AR Image';
+        img.className = 'rounded-lg border border-white/10 max-h-48 w-full object-contain';
+        img.onerror = () => { calloutBody.textContent = 'Gagal memuat gambar.'; };
+        calloutBody.appendChild(img);
+      } else {
+        calloutBody.textContent = val || 'Contoh teks AR – ubah pada kolom di atas.';
+      }
+
+      // Tempel callout di atas sisi atas tengah bounding box
+      const xs = corners.map(c => c.x); const ys = corners.map(c => c.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const targetX = (minX + maxX) / 2; // tengah atas
+      const targetY = minY;
+
+      // Posisikan callout sedikit di atas target (dengan batas tepi)
+      const st = stage.getBoundingClientRect();
+      callout.style.left = Math.max(8, Math.min(st.width-8-260, targetX - 130)) + 'px';
+      callout.style.top  = Math.max(8, targetY - 90) + 'px';
+      callout.classList.remove('hidden');
+      updateArrow();
+    }
+
+    function updateArrow(){
+      // Panah menunjuk ke titik tengah sisi atas quadrilateral (atau bounding boxnya)
+      const xs = corners.map(c => c.x); const ys = corners.map(c => c.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const tipX = (minX + maxX) / 2; const tipY = minY; // titik target
+
+      const st = stage.getBoundingClientRect();
+      const cr = callout.getBoundingClientRect();
+      const cx = cr.left - st.left + cr.width/2; // pusat callout terhadap stage
+      const cy = cr.top  - st.top  + cr.height;  // bawah callout
+
+      // Tempatkan arrow tepat di bawah callout, geser agar mengarah ke targetX
+      arrow.style.left = Math.max(12, Math.min(callout.offsetWidth-12, tipX - (cr.left - st.left))) + 'px';
+      arrow.style.top  = (callout.offsetHeight - 2) + 'px';
+    }
+
+    // Bersihkan kamera saat meninggalkan halaman
+    window.addEventListener('beforeunload', () => {
+      if(stream){ stream.getTracks().forEach(t => t.stop()); }
+    });
+  </script>
+</body>
+</html>
