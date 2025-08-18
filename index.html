@@ -2,152 +2,354 @@
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Web AR — Poster Bullets (Markerless) — Fokus Bullet</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" />
+  <title>AR Poster — 4:5 Surface Placement (no WebXR)</title>
+
+  <!-- A-Frame and AR.js (aframe-ar) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.1/aframe.min.js"></script>
+  <script src="https://unpkg.com/ar.js@3.4.0/aframe/build/aframe-ar.js"></script>
+
   <style>
-    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
-    #app{position:fixed;inset:0;display:flex;flex-direction:column}
-    #camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-    #overlay{position:absolute;inset:0;pointer-events:none}
-    #hud{position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px 10px;border-radius:8px;z-index:40;font-size:14px}
-    .frame{position:absolute;border:2px dashed rgba(255,255,255,0.95);box-shadow:0 6px 20px rgba(0,0,0,0.4);border-radius:8px;pointer-events:auto}
-    .bullet{position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.5);}
-    #controls{position:fixed;right:12px;top:12px;z-index:50;display:flex;gap:8px;flex-direction:column}
-    .btn{background:rgba(255,255,255,0.9);border-radius:8px;padding:8px 10px;font-weight:600;border:0;cursor:pointer}
-    #hint{position:fixed;left:12px;bottom:12px;background:rgba(0,0,0,0.5);color:#fff;padding:8px;border-radius:8px;z-index:40;font-size:13px}
-    #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:8px;z-index:80;display:none}
+    body, html { margin:0; height:100%; background:#000; overflow:hidden; font-family: system-ui, -apple-system, "Segoe UI", Roboto; }
+    #ui {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      z-index: 30;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    button {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      backdrop-filter: blur(6px);
+    }
+    #hint {
+      color: #fff;
+      font-size: 13px;
+      opacity: .9;
+      padding:6px 10px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border-radius:8px;
+    }
+
+    /* Drawing overlay */
+    #overlay {
+      position: absolute;
+      inset:0;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .sel-rect {
+      position: absolute;
+      border: 2px dashed rgba(255,255,255,0.9);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      pointer-events: none;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    }
+    /* Small helper: center crosshair */
+    #cross {
+      position: absolute;
+      left:50%;
+      top:50%;
+      transform: translate(-50%,-50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.6);
+      box-shadow: 0 0 18px rgba(0,200,255,0.12);
+      pointer-events: none;
+      z-index:15;
+    }
+
+    /* mobile instruction text at bottom */
+    #instructions {
+      position:absolute;
+      left:50%;
+      bottom:16px;
+      transform: translateX(-50%);
+      color:#fff;
+      font-size:13px;
+      background: rgba(0,0,0,0.35);
+      padding:8px 12px;
+      border-radius:10px;
+      z-index:30;
+    }
+
   </style>
 </head>
 <body>
-<div id="app">
-  <video id="camera" autoplay playsinline muted></video>
-  <div id="overlay"></div>
-
-  <div id="hud">Ketuk layar untuk menempatkan bingkai 4:5. Setelah bingkai muncul, ketuk di dalam bingkai untuk menambahkan bullet (nomor).</div>
-
-  <div id="controls">
-    <button id="fsBtn" class="btn">Fullscreen</button>
-    <button id="clearBtn" class="btn">Hapus Semua</button>
-    <button id="saveBtn" class="btn">Simpan</button>
-    <button id="loadBtn" class="btn">Muat</button>
+  <!-- UI -->
+  <div id="ui">
+    <button id="startPlace">Mulai Pilih Surface</button>
+    <button id="clearAll">Hapus Semua</button>
+    <div id="hint">Tarik (drag) untuk menggambar kotak; rasio 4:5 otomatis.</div>
   </div>
 
-  <div id="hint">Bingkai belum ditempatkan</div>
-  <div id="toast"></div>
-</div>
+  <div id="overlay">
+    <div id="cross"></div>
+  </div>
+  <div id="instructions">Gambar kotak pada permukaan nyata di layar lalu lepaskan untuk menaruh poster. (Rasio 4:5)</div>
+
+  <!-- A-Frame scene with AR.js -->
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+    <!-- Camera -->
+    <a-entity id="camRig">
+      <a-entity camera id="camera" look-controls></a-entity>
+    </a-entity>
+
+    <!-- Container for placed posters -->
+    <a-entity id="placedRoot"></a-entity>
+
+    <!-- small helper light -->
+    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
+    <a-entity light="type: directional; intensity: 0.6" position="0 1 1"></a-entity>
+  </a-scene>
 
 <script>
-(async function(){
-  const video = document.getElementById('camera');
-  const overlay = document.getElementById('overlay');
-  const hud = document.getElementById('hud');
-  const hint = document.getElementById('hint');
-  const toast = document.getElementById('toast');
-  const fsBtn = document.getElementById('fsBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const saveBtn = document.getElementById('saveBtn');
-  const loadBtn = document.getElementById('loadBtn');
+/*
+  Flow:
+  - User presses "Mulai Pilih Surface" -> overlay starts listening to pointer events
+  - User drag on screen to create a rectangle with fixed 4:5 ratio
+  - On pointerup, compute center of rect in NDC, cast a ray from camera and place plane at fixed distance
+  - Plane gets texture from user-provided poster URL
+  - Add glass-morph frame and bullets 1-5 in front
+  - Placed entity is world-space (position set via three.js unproject math, orientation copied from camera at placement moment so it stays at that world rotation)
+*/
 
-  // camera
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:'environment'}}, audio:false});
-    video.srcObject = stream;
-  }catch(e){
-    try{ const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false}); video.srcObject = s; }
-    catch(err){ console.error('camera error', err); alert('Tidak dapat mengakses kamera. Pastikan izin diberikan.'); }
+const POSTER_URL = "https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/WhatsApp%20Image%202025-08-18%20at%2018.14.03.jpeg";
+
+const startBtn = document.getElementById('startPlace');
+const clearBtn = document.getElementById('clearAll');
+const overlay = document.getElementById('overlay');
+let drawing = false;
+let rectEl = null;
+let startX = 0, startY = 0;
+let active = false;
+
+const sceneEl = document.querySelector('a-scene');
+const cameraEl = document.getElementById('camera');
+const placedRoot = document.getElementById('placedRoot');
+
+startBtn.addEventListener('click', () => {
+  active = true;
+  startBtn.textContent = "Mode Pilih: Aktif (drag di layar)";
+  overlay.style.pointerEvents = 'auto';
+});
+
+clearBtn.addEventListener('click', () => {
+  // Remove all children
+  while (placedRoot.firstChild) placedRoot.removeChild(placedRoot.firstChild);
+});
+
+// pointer events for desktop/mobile
+overlay.addEventListener('pointerdown', (ev) => {
+  if (!active) return;
+  drawing = true;
+  startX = ev.clientX;
+  startY = ev.clientY;
+  rectEl = document.createElement('div');
+  rectEl.className = 'sel-rect';
+  rectEl.style.left = startX + 'px';
+  rectEl.style.top = startY + 'px';
+  rectEl.style.width = '2px';
+  rectEl.style.height = '2px';
+  overlay.appendChild(rectEl);
+});
+
+overlay.addEventListener('pointermove', (ev) => {
+  if (!drawing || !rectEl) return;
+  // compute delta constrained to 4:5 ratio (width:height = 4:5)
+  const dx = ev.clientX - startX;
+  const signX = dx >= 0 ? 1 : -1;
+  const width = Math.abs(dx);
+  const height = width * (5/4); // height = width * 5/4 to maintain 4:5 (w:h)
+  const top = startY - (height * (startY > ev.clientY ? 1 : 0));
+  // Handle direction for top-left
+  if (signX >= 0) {
+    rectEl.style.left = startX + 'px';
+  } else {
+    rectEl.style.left = (startX - width) + 'px';
+  }
+  // set top depending on pointer vertical
+  if (ev.clientY >= startY) {
+    rectEl.style.top = startY + 'px';
+  } else {
+    rectEl.style.top = (startY - height) + 'px';
+  }
+  rectEl.style.width = width + 'px';
+  rectEl.style.height = height + 'px';
+});
+
+overlay.addEventListener('pointerup', (ev) => {
+  if (!drawing || !rectEl) return;
+  drawing = false;
+  active = false;
+  startBtn.textContent = "Mulai Pilih Surface";
+  overlay.style.pointerEvents = 'none';
+
+  // get rect center in screen coords
+  const r = rectEl.getBoundingClientRect();
+  const cx = r.left + r.width/2;
+  const cy = r.top + r.height/2;
+
+  // convert to NDC
+  const ndcX = (cx / window.innerWidth) * 2 - 1;
+  const ndcY = -((cy / window.innerHeight) * 2 - 1);
+
+  placePosterAtNDC(ndcX, ndcY, r.width, r.height);
+
+  // remove selection visual
+  rectEl.remove();
+  rectEl = null;
+});
+
+/* Place poster in world:
+   - unproject a vector through camera into world
+   - put plane at certain distance (meters) along that ray
+   - set plane rotation equal to camera rotation at placement time (so it stays in world orientation)
+   - size: map screen rectangle width -> world width using simple projection at distance
+*/
+function placePosterAtNDC(ndcX, ndcY, screenWpx, screenHpx) {
+  // get three.js camera
+  const threeCamera = sceneEl.camera; // three.js camera
+  // unproject point at z = -1 in camera space (direction)
+  const vec = new THREE.Vector3(ndcX, ndcY, -1).unproject(threeCamera);
+  const camPos = new THREE.Vector3().copy(threeCamera.position);
+  const dir = vec.sub(camPos).normalize();
+
+  // choose distance (meters) from camera to place object
+  const DIST = 1.5; // 1.5m in front; tweakable
+  const worldPos = new THREE.Vector3().copy(camPos).add(dir.multiplyScalar(DIST));
+
+  // estimate world width: project two screen points separated by screenWpx at same depth
+  // compute ndc for left and right points at same vertical center
+  const pxLeft = (( ( ( (ndcX+1)/2 ) * window.innerWidth - screenWpx/2 ) ) / window.innerWidth) * 2 - 1;
+  const pxRight = (( ( ( (ndcX+1)/2 ) * window.innerWidth + screenWpx/2 ) ) / window.innerWidth) * 2 - 1;
+  // unproject left and right at same depth
+  const vecLeft = new THREE.Vector3(pxLeft, ndcY, -1).unproject(threeCamera);
+  const dirLeft = vecLeft.sub(camPos).normalize();
+  const posLeft = new THREE.Vector3().copy(camPos).add(dirLeft.multiplyScalar(DIST));
+  const vecRight = new THREE.Vector3(pxRight, ndcY, -1).unproject(threeCamera);
+  const dirRight = vecRight.sub(camPos).normalize();
+  const posRight = new THREE.Vector3().copy(camPos).add(dirRight.multiplyScalar(DIST));
+  const worldWidth = posLeft.distanceTo(posRight);
+
+  // determine corresponding world height via 4:5 ratio
+  const worldHeight = worldWidth * (5/4);
+
+  // Build A-Frame entity group
+  const wrapper = document.createElement('a-entity');
+
+  // position and rotation: set world position, and freeze rotation to camera's current world rotation
+  wrapper.object3D.position.copy(worldPos);
+  // copy camera quaternion now so poster stays fixed in world orientation
+  wrapper.object3D.quaternion.copy(threeCamera.quaternion);
+
+  // Create poster plane
+  const poster = document.createElement('a-plane');
+  poster.setAttribute('width', worldWidth.toFixed(4));
+  poster.setAttribute('height', worldHeight.toFixed(4));
+  poster.setAttribute('rotation', '0 0 0'); // geometry local rotation
+  poster.setAttribute('material', `src: ${POSTER_URL}; side: double; transparent: false;`);
+  poster.setAttribute('position', '0 0 0');
+  poster.setAttribute('shadow', 'receive: true');
+
+  // Create glass morph frame: slightly bigger, semi-transparent with animated emissive
+  const frame = document.createElement('a-plane');
+  const frameW = worldWidth * 1.06;
+  const frameH = worldHeight * 1.06;
+  frame.setAttribute('width', frameW);
+  frame.setAttribute('height', frameH);
+  frame.setAttribute('position', '0 0 -0.001'); // slightly behind poster to form border effect
+  // Use shader-like material with opacity, metalness & animated emissive intensity
+  frame.setAttribute('material', `shader: standard; color: #bfefff; transparent: true; opacity: 0.14; metalness: 0.55; roughness: 0.05; emissive: #00f6ff; emissiveIntensity: 0.0`);
+  // Add animation to make a pulsating glow
+  frame.setAttribute('animation__glow', `property: material.emissiveIntensity; from: 0.0; to: 0.8; dur: 1800; dir: alternate; loop: true; easing: easeInOutSine`);
+
+  // To visually create a "glass border" we add an inner mask: a slightly smaller plane that uses alpha to cut center
+  const innerMask = document.createElement('a-plane');
+  innerMask.setAttribute('width', worldWidth * 0.92);
+  innerMask.setAttribute('height', worldHeight * 0.92);
+  innerMask.setAttribute('position', '0 0 -0.002');
+  innerMask.setAttribute('material', `color: #000; transparent: true; opacity: 0.0;`); // fully transparent but ensures depth ordering
+
+  // Add subtle rim lines (4 thin planes)
+  const rimThickness = worldWidth * 0.01;
+  const rimTop = document.createElement('a-plane');
+  rimTop.setAttribute('width', frameW);
+  rimTop.setAttribute('height', rimThickness);
+  rimTop.setAttribute('position', `0 ${(frameH/2) - rimThickness/2} -0.0015`);
+  rimTop.setAttribute('material', `color: #7ef0ff; opacity:0.5; transparent:true`);
+  rimTop.setAttribute('animation__slide', `property: position.x; from: -${frameW/2}; to: ${frameW/2}; dur: 2200; dir: alternate; loop: true; easing: linear`);
+
+  const rimBot = rimTop.cloneNode();
+  rimBot.setAttribute('position', `0 -${(frameH/2) - rimThickness/2} -0.0015`);
+
+  const rimLeft = document.createElement('a-plane');
+  rimLeft.setAttribute('width', rimThickness);
+  rimLeft.setAttribute('height', frameH);
+  rimLeft.setAttribute('position', `${- (frameW/2) + rimThickness/2} 0 -0.0015`);
+  rimLeft.setAttribute('material', `color: #7ef0ff; opacity:0.45; transparent:true`);
+
+  const rimRight = rimLeft.cloneNode();
+  rimRight.setAttribute('position', `${(frameW/2) - rimThickness/2} 0 -0.0015`);
+
+  // Bullets 1-5: small text planes slightly in front of poster
+  const bullets = [];
+  const bulletBaseZ = 0.02; // slightly in front
+  const lineGap = worldHeight / 7;
+  for (let i=1;i<=5;i++){
+    const t = document.createElement('a-entity');
+    t.setAttribute('geometry', `primitive: plane; width: ${worldWidth * 0.9}; height: ${lineGap * 0.8}`);
+    t.setAttribute('material', 'shader: standard; color: #000000; opacity: 0.0; transparent: true;');
+    const yOffset = (worldHeight/2) - (lineGap * i) - (lineGap*0.3);
+    t.setAttribute('position', `0 ${yOffset} ${bulletBaseZ}`);
+    // Use text component
+    t.setAttribute('text', `value: ${i}. Bullet ${i} — penjelasan singkat.; align: left; width: ${worldWidth * 0.9}; color: #e6fffe; wrapCount: 40;`);
+    // Slight scale for readability
+    t.object3D.scale.set(0.9,0.9,0.9);
+    bullets.push(t);
   }
 
-  // model
-  let frameEl = null;
-  let bullets = []; // {id,relX,relY,number}
-  let nextNum = 1;
+  // Add a subtle drop shadow (a semi-transparent dark plane behind)
+  const shadow = document.createElement('a-plane');
+  shadow.setAttribute('width', worldWidth * 1.01);
+  shadow.setAttribute('height', worldHeight * 1.01);
+  shadow.setAttribute('position', `0 0 -0.005`);
+  shadow.setAttribute('material', `color: #000; opacity: 0.14; transparent: true`);
 
-  function showToast(msg,ms=1100){ toast.textContent=msg; toast.style.display='block'; setTimeout(()=>{ toast.style.display='none'; }, ms); }
+  // Append children in wrapper
+  wrapper.appendChild(shadow);
+  wrapper.appendChild(frame);
+  wrapper.appendChild(rimTop);
+  wrapper.appendChild(rimBot);
+  wrapper.appendChild(rimLeft);
+  wrapper.appendChild(rimRight);
+  wrapper.appendChild(innerMask);
+  wrapper.appendChild(poster);
+  bullets.forEach(b => wrapper.appendChild(b));
 
-  // save/load
-  function saveData(){
-    const data = {frame: frameEl ? {left: frameEl.style.left, top: frameEl.style.top, width: frameEl.style.width, height: frameEl.style.height} : null, bullets};
-    localStorage.setItem('ar_bullets_v1', JSON.stringify(data)); showToast('Tersimpan');
-  }
-  function loadData(){
-    const raw = localStorage.getItem('ar_bullets_v1'); if(!raw){ showToast('Tidak ada data'); return; }
-    const data = JSON.parse(raw);
-    clearAll(false);
-    if(data.frame) createFrameFromData(data.frame);
-    if(data.bullets) data.bullets.forEach(b=>createBulletFromData(b));
-    showToast('Dimuat');
-  }
-  function clearAll(ask=true){
-    bullets = []; nextNum = 1;
-    if(frameEl){ frameEl.remove(); frameEl=null; }
-    Array.from(overlay.querySelectorAll('.bullet')).forEach(b=>b.remove());
-    hint.textContent='Bingkai belum ditempatkan';
-  }
+  // Add scale animation to entrance
+  wrapper.setAttribute('animation__scalein', `property: scale; from: 0.3 0.3 0.3; to: 1 1 1; dur: 600; easing: easeOutBack`);
 
-  clearBtn.addEventListener('click', ()=>clearAll());
-  saveBtn.addEventListener('click', saveData);
-  loadBtn.addEventListener('click', loadData);
+  // Add to scene
+  placedRoot.appendChild(wrapper);
+}
 
-  // place frame once via tap
-  overlay.addEventListener('click', (ev)=>{
-    if(frameEl) return;
-    const rect = overlay.getBoundingClientRect();
-    const x = ev.clientX - rect.left; const y = ev.clientY - rect.top;
-    const width = Math.min(rect.width*0.75, 700);
-    const height = width * 5/4; // 4:5 ratio -> height = width*(5/4)
-    const left = x - width/2; const top = y - height/2;
-    frameEl = document.createElement('div'); frameEl.className='frame';
-    frameEl.style.left = Math.max(8, left) + 'px'; frameEl.style.top = Math.max(8, top) + 'px'; frameEl.style.width = width + 'px'; frameEl.style.height = height + 'px';
-    overlay.appendChild(frameEl);
-    frameMakeDraggable(frameEl);
-    hint.textContent='Bingkai ditempatkan — ketuk di dalam bingkai untuk menambah bullet';
-    hud.style.display='none';
-    ev.stopPropagation();
-  });
+/* Small note: A-Frame/A-Frame-AR will handle camera feed automatically.
+   The placement math uses three.js camera/unprojection to estimate a world point
+   at a fixed distance. That produces a world-fixed object (its position/quaternion
+   are in world coordinates), so as you move the camera the poster will appear
+   "anchored" at that world location. This is an approximation — for robust,
+   persistent SLAM-style anchoring you need WebXR/SLAM or fiducial markers.
+*/
 
-  // create bullet immediately when tapping inside frame (no info input for now)
-  overlay.addEventListener('pointerdown', (ev)=>{
-    if(!frameEl) return;
-    const isInside = ev.target === frameEl || frameEl.contains(ev.target);
-    if(!isInside) return;
-    // avoid creating bullet when clicking on existing bullets
-    if(ev.target.classList && ev.target.classList.contains('bullet')) return;
-    const fRect = frameEl.getBoundingClientRect();
-    const relX = (ev.clientX - fRect.left) / fRect.width;
-    const relY = (ev.clientY - fRect.top) / fRect.height;
-    const b = {id:Date.now(), relX, relY, number: nextNum}; bullets.push(b);
-    createBulletFromData(b);
-    nextNum++;
-    showToast('Bullet #' + (nextNum-1));
-    ev.stopPropagation(); ev.preventDefault();
-  });
-
-  function createBulletFromData(b){
-    if(!frameEl) return; const el = document.createElement('div'); el.className='bullet'; el.dataset.id=b.id; el.textContent = b.number; positionBulletEl(el,b.relX,b.relY); frameEl.appendChild(el);
-    // clicking a bullet currently does nothing (reserved for later).
-    el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showToast('Klik akan menampilkan detail nanti'); });
-  }
-
-  function positionBulletEl(el, relX, relY){ const w = frameEl.clientWidth; const h = frameEl.clientHeight; const size = 40; const left = relX * w - size/2; const top = relY * h - size/2; el.style.left = left + 'px'; el.style.top = top + 'px'; }
-
-  function frameMakeDraggable(el){
-    let dragging=false, startX, startY, startLeft, startTop;
-    el.addEventListener('pointerdown',(ev)=>{ if(ev.target.classList && ev.target.classList.contains('bullet')) return; dragging=true; startX=ev.clientX; startY=ev.clientY; startLeft=parseFloat(el.style.left); startTop=parseFloat(el.style.top); el.setPointerCapture && el.setPointerCapture(ev.pointerId); });
-    window.addEventListener('pointermove',(ev)=>{ if(!dragging) return; const dx=ev.clientX-startX; const dy=ev.clientY-startY; el.style.left=(startLeft+dx)+'px'; el.style.top=(startTop+dy)+'px'; });
-    window.addEventListener('pointerup',(ev)=>{ if(dragging){ dragging=false; try{ ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId);}catch(e){} }});
-
-    // resize handle
-    const handle = document.createElement('div'); handle.style.position='absolute'; handle.style.right='6px'; handle.style.bottom='6px'; handle.style.width='18px'; handle.style.height='18px'; handle.style.borderRadius='4px'; handle.style.background='rgba(255,255,255,0.8)'; handle.style.touchAction='none'; handle.style.cursor='nwse-resize'; el.appendChild(handle);
-    let resizing=false, startCX, startCY, startW;
-    handle.addEventListener('pointerdown',(ev)=>{ resizing=true; startCX=ev.clientX; startCY=ev.clientY; startW=el.clientWidth; handle.setPointerCapture && handle.setPointerCapture(ev.pointerId); ev.stopPropagation(); });
-    window.addEventListener('pointermove',(ev)=>{ if(!resizing) return; const dx=ev.clientX-startCX; let newW = Math.max(120, startW + dx); let newH = newW * 5/4; el.style.width=newW+'px'; el.style.height=newH+'px'; [...el.querySelectorAll('.bullet')].forEach(bEl=>{ const id=bEl.dataset.id; const data = bullets.find(x=>String(x.id)===String(id)); if(data) positionBulletEl(bEl,data.relX,data.relY); }); });
-    window.addEventListener('pointerup',(ev)=>{ if(resizing){ resizing=false; try{ ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId);}catch(e){} }});
-  }
-
-  // fullscreen
-  fsBtn.addEventListener('click', async ()=>{ try{ await document.documentElement.requestFullscreen(); }catch(e){console.warn(e)} });
-
-})();
 </script>
+
 </body>
 </html>
