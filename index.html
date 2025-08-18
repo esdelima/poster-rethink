@@ -1,561 +1,381 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Poster Info System</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Poster Info AR — Mobile</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--glass-bg: rgba(255,255,255,0.08); --glass-border: rgba(255,255,255,0.12);}
+    html,body,#app{height:100%;}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:#020617;color:#e6eef8;}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23, #1a1a3e);
-            overflow: hidden;
-            height: 100vh;
-        }
+    /* Fullscreen video behind overlays */
+    #camera {position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#000}
+    /* Mobile-only: hide on wide screens */
+    @media(min-width:900px){ #app{display:flex;align-items:center;justify-content:center} #mobile-only{display:none} }
 
-        .ar-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
+    /* Poster selector (4:5 ratio) */
+    .poster-box{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:48vw; aspect-ratio:4/5; border-radius:14px; border:2px dashed rgba(255,255,255,0.22); box-shadow:0 6px 30px rgba(2,6,23,0.6); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px) saturate(120%);}
+    .poster-handle{position:absolute; width:18px;height:18px;border-radius:50%; background:linear-gradient(180deg,#fff,#cfe6ff); box-shadow:0 6px 18px rgba(37,99,235,0.18); border:2px solid rgba(255,255,255,0.6);}
+    .poster-label{position:absolute; top:10px; left:12px; background:linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); padding:8px 12px; border-radius:999px; border:1px solid var(--glass-border); font-weight:600; font-size:14px}
 
-        #camera-feed {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            filter: brightness(0.8) contrast(1.1);
-        }
+    /* Glass-morph HUD */
+    .hud{position:fixed; left:12px; right:12px; bottom:18px; z-index:60; display:flex; gap:12px; justify-content:space-between}
+    .glass{backdrop-filter: blur(8px) saturate(120%); background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:14px; padding:12px; box-shadow: 0 6px 30px rgba(2,6,23,0.6)}
 
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
+    /* Hotspot style */
+    .hotspot{position:absolute; transform:translate(-50%,-50%); min-width:48px; min-height:48px; display:flex; align-items:center; justify-content:center; border-radius:999px; font-weight:700; color:#05204a; z-index:50; box-shadow:0 6px 25px rgba(2,6,23,0.45);}
+    .hotspot .pill{padding:6px 10px; border-radius:999px; backdrop-filter: blur(6px);}
 
-        .calibration-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: opacity 0.5s ease;
-        }
+    /* Info card */
+    .info-card{position:fixed; left:50%; transform:translateX(-50%); bottom:110px; z-index:70; width:92%; max-width:420px; border-radius:14px; padding:12px 14px; box-shadow:0 20px 40px rgba(2,6,23,0.6);}
+    .close-x{position:absolute; right:10px; top:8px; opacity:0.7}
 
-        .poster-frame {
-            width: 280px;
-            height: 350px;
-            border: 3px solid #00ffff;
-            border-radius: 15px;
-            background: rgba(0, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            position: relative;
-            animation: pulse 2s infinite;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
-        }
+    /* small helper text */
+    .muted{color:rgba(230,238,248,0.7); font-size:13px}
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(0, 255, 255, 0.5); }
-            50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(0, 255, 255, 0.8); }
-        }
-
-        .calibration-text {
-            color: #00ffff;
-            font-size: 18px;
-            text-align: center;
-            margin-bottom: 30px;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-        }
-
-        .calibrate-btn {
-            background: linear-gradient(45deg, #00ffff, #0080ff);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 30px;
-            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.3);
-            transition: all 0.3s ease;
-            pointer-events: all;
-        }
-
-        .calibrate-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 255, 255, 0.5);
-        }
-
-        .info-point {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(0, 255, 255, 0.2);
-            backdrop-filter: blur(15px);
-            border: 2px solid #00ffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #00ffff;
-            font-weight: bold;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
-            pointer-events: all;
-            z-index: 100;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .info-point:hover {
-            transform: scale(1.2) translateY(-5px);
-            background: rgba(0, 255, 255, 0.4);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
-        }
-
-        .info-point.active {
-            animation: none;
-            transform: scale(1.3);
-            background: rgba(255, 0, 255, 0.3);
-            border-color: #ff00ff;
-            color: #ff00ff;
-            box-shadow: 0 0 25px rgba(255, 0, 255, 0.8);
-        }
-
-        .info-panel {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(0, 255, 255, 0.3);
-            border-radius: 20px;
-            padding: 20px;
-            color: white;
-            transform: translateY(100%);
-            transition: transform 0.4s ease;
-            pointer-events: all;
-            max-height: 40vh;
-            overflow-y: auto;
-        }
-
-        .info-panel.show {
-            transform: translateY(0);
-        }
-
-        .info-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #00ffff;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-        }
-
-        .info-content {
-            font-size: 14px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            background: none;
-            border: none;
-            color: #ff4444;
-            font-size: 24px;
-            cursor: pointer;
-            transition: color 0.3s ease;
-        }
-
-        .close-btn:hover {
-            color: #ff6666;
-        }
-
-        .hud-overlay {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 50;
-        }
-
-        .status-indicator {
-            background: rgba(0, 255, 0, 0.2);
-            backdrop-filter: blur(10px);
-            border: 1px solid #00ff00;
-            border-radius: 20px;
-            padding: 8px 15px;
-            color: #00ff00;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .connection-lines {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        @media (max-width: 480px) {
-            .poster-frame {
-                width: 240px;
-                height: 300px;
-            }
-            
-            .calibration-text {
-                font-size: 16px;
-                padding: 0 20px;
-            }
-            
-            .info-point {
-                width: 35px;
-                height: 35px;
-                font-size: 16px;
-            }
-        }
-    </style>
+    /* Animations */
+    .pulse{animation:pulse 1.8s infinite ease-in-out}
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+  </style>
 </head>
 <body>
-    <div class="ar-container">
-        <video id="camera-feed" autoplay muted playsinline></video>
-        
-        <div class="hud-overlay">
-            <div class="status-indicator">AR AKTIF</div>
-            <div class="status-indicator" id="tracking-status">TRACKING: STABIL</div>
-        </div>
+  <div id="app">
 
-        <svg class="connection-lines" id="connection-lines">
-            <!-- Lines will be drawn here -->
-        </svg>
+    <!-- Camera (video) -->
+    <video id="camera" autoplay playsinline muted></video>
 
-        <div class="overlay" id="ar-overlay">
-            <!-- Info points will be positioned here -->
-        </div>
+    <!-- Mobile-only UI -->
+    <div id="mobile-only">
 
-        <div class="calibration-screen" id="calibration-screen">
-            <div class="calibration-text">
-                Posisikan poster dalam frame ini<br>
-                Pastikan seluruh poster terlihat jelas
-            </div>
-            <div class="poster-frame">
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0,255,255,0.6); font-size: 14px;">
-                    POSTER 4:5
-                </div>
-            </div>
-            <button class="calibrate-btn" onclick="startARTracking()">MULAI TRACKING</button>
+      <!-- Poster selector overlay -->
+      <div id="posterBox" class="poster-box glass" aria-hidden="false">
+        <div class="poster-label">Posisikan poster (rasio 4:5)</div>
+        <div style="text-align:center; max-width:70%">
+          <div style="font-weight:600; font-size:13px">Taruh bingkai di atas poster</div>
+          <div class="muted" style="font-size:12px">Gunakan satu jari untuk geser • cubit untuk ubah ukuran</div>
         </div>
+      </div>
 
-        <div class="info-panel" id="info-panel">
-            <button class="close-btn" onclick="closeInfoPanel()">&times;</button>
-            <div class="info-title" id="info-title">Informasi</div>
-            <div class="info-content" id="info-content">Pilih titik informasi untuk melihat detail</div>
+      <!-- Controls HUD -->
+      <div class="hud">
+        <div class="glass" id="leftHud" style="flex:1; display:flex; gap:10px; align-items:center;">
+          <button id="btnSet" class="px-4 py-2 rounded-xl text-sm font-semibold" style="background:linear-gradient(90deg,#60a5fa,#3b82f6); color:white">Tentukan Lokasi</button>
+          <button id="btnReset" class="px-3 py-2 rounded-xl text-sm font-semibold" style="background:transparent; border:1px solid rgba(255,255,255,0.06); color:#dbeafe">Atur Ulang</button>
         </div>
+        <div class="glass" style="width:86px; display:flex; align-items:center; justify-content:center;">
+          <div id="statusHeading">—°</div>
+        </div>
+      </div>
+
+      <!-- Hotspots container (world anchored) -->
+      <div id="hotspotsContainer"></div>
+
+      <!-- Info Card (hidden initially) -->
+      <div id="infoCard" class="glass info-card hidden">
+        <button id="closeInfo" class="close-x">✕</button>
+        <div id="infoTitle" style="font-weight:800; font-size:16px">Judul</div>
+        <div id="infoBody" class="muted" style="margin-top:6px; font-size:14px">Deskripsi singkat akan muncul di sini ketika kamu mengetuk titik informasi.</div>
+      </div>
+
     </div>
 
-    <script>
-        let isCalibrated = false;
-        let activePoint = null;
-        let posterBounds = { x: 0, y: 0, width: 0, height: 0 };
-        
-        const infoData = {
-            1: {
-                title: "Teknologi Masa Depan",
-                content: "Sistem AR ini menggunakan teknologi computer vision terdepan untuk melacak posisi poster secara real-time. Dengan algoritma SLAM (Simultaneous Localization and Mapping), setiap titik informasi tetap berada di posisi absolut meskipun kamera bergerak."
-            },
-            2: {
-                title: "Fitur Interaktif",
-                content: "Setiap titik informasi dapat diakses dengan sentuhan. Sistem ini mendukung gesture recognition dan dapat menampilkan konten multimedia seperti video, audio, dan model 3D yang terintegrasi dengan lingkungan nyata."
-            },
-            3: {
-                title: "Implementasi IoT",
-                content: "Poster ini terhubung dengan sistem IoT yang memungkinkan update konten secara real-time. Data analytics dari interaksi pengguna dikumpulkan untuk meningkatkan pengalaman dan personalisasi konten."
-            },
-            4: {
-                title: "Keamanan Data",
-                content: "Semua data pengguna dienkripsi end-to-end menggunakan protokol keamanan tingkat militer. Sistem ini mematuhi standar GDPR dan tidak menyimpan data biometrik tanpa persetujuan eksplisit."
-            },
-            5: {
-                title: "Aplikasi Industri",
-                content: "Teknologi ini dapat diterapkan di museum, pameran, retail, pendidikan, dan healthcare. ROI meningkat hingga 300% dengan engagement rate yang 5x lebih tinggi dibanding media tradisional."
-            }
-        };
+  </div>
 
-        // Initialize camera
-        async function initCamera() {
-            const video = document.getElementById('camera-feed');
-            
-            try {
-                // Try environment camera first (back camera)
-                let stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: { exact: 'environment' },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                
-                video.srcObject = stream;
-                
-                // Wait for video to load
-                video.onloadedmetadata = () => {
-                    video.play();
-                    console.log('Camera initialized successfully');
-                };
-                
-            } catch (error) {
-                console.log('Environment camera not available, trying user camera:', error);
-                
-                try {
-                    // Fallback to any available camera
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { 
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
-                    
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        console.log('Fallback camera initialized');
-                    };
-                    
-                } catch (fallbackError) {
-                    console.error('No camera available:', fallbackError);
-                    
-                    // Show error message and create demo background
-                    video.style.display = 'none';
-                    const container = document.querySelector('.ar-container');
-                    container.style.background = 'linear-gradient(45deg, #1a1a2e, #16213e, #0f3460)';
-                    
-                    const errorMsg = document.createElement('div');
-                    errorMsg.style.cssText = `
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        color: #ff6b6b;
-                        text-align: center;
-                        font-size: 16px;
-                        background: rgba(0,0,0,0.8);
-                        padding: 20px;
-                        border-radius: 10px;
-                        border: 1px solid #ff6b6b;
-                        z-index: 999;
-                    `;
-                    errorMsg.innerHTML = `
-                        <div>📱 Kamera tidak dapat diakses</div>
-                        <div style="font-size: 12px; margin-top: 10px; opacity: 0.8;">
-                            Mode demo aktif - Anda tetap dapat mencoba fitur AR
-                        </div>
-                    `;
-                    container.appendChild(errorMsg);
-                    
-                    // Hide error after 3 seconds
-                    setTimeout(() => {
-                        errorMsg.style.opacity = '0';
-                        setTimeout(() => errorMsg.remove(), 500);
-                    }, 3000);
-                }
-            }
+  <script>
+    /* Poster Info AR — single-file mobile web app
+       Behavior summary (implemented):
+       - Minta akses kamera (video) dan DeviceOrientation.
+       - Tampilkan draggable/resizable 4:5 rectangle sebagai "penentuan lokasi poster".
+       - Saat pengguna menekan "Tentukan Lokasi", kita menghitung 'poster anchor' dalam dunia menggunakan:
+         - heading saat itu (DeviceOrientation alpha as absolute if available)
+         - posisi rectangle relatif ke layar -> convert ke bearing offset using assumed camera horizontal FOV
+       - Buat 5 hotspot yang berposisi relatif terhadap poster (normalized coordinates),
+         lalu 'world-anchor' mereka: komputasi tiap frame menggunakan heading & pitch agar titik tetap di koordinat dunia
+       - Hasil: meskipun kamera bergerak/berputar, hotspot tampil seperti ter-anchored ke poster (VR-like)
+    */
+
+    // --- Configuration ---
+    const HORIZONTAL_FOV = 60; // assumed camera horizontal FOV in degrees (approx for many phones)
+    const VERTICAL_FOV = 45;   // approximate vertical FOV
+    const SHOW_FOV_GUIDE = false;
+    const HOTSPOT_COUNT = 5;
+
+    // DOM
+    const video = document.getElementById('camera');
+    const posterBox = document.getElementById('posterBox');
+    const btnSet = document.getElementById('btnSet');
+    const btnReset = document.getElementById('btnReset');
+    const hotspotsContainer = document.getElementById('hotspotsContainer');
+    const infoCard = document.getElementById('infoCard');
+    const infoTitle = document.getElementById('infoTitle');
+    const infoBody = document.getElementById('infoBody');
+    const closeInfo = document.getElementById('closeInfo');
+    const statusHeading = document.getElementById('statusHeading');
+
+    let deviceHeading = 0; // 0-360 — alpha mapped to compass-like heading
+    let devicePitch = 0; // beta
+    let deviceRoll = 0; // gamma
+
+    // Poster anchor state
+    let posterAnchor = null; // {bearing:°, verticalAngle:°, angularWidth:°, angularHeight:°, distance: m}
+
+    // Hotspots model (normalized positions inside poster [0..1] x [0..1])
+    const hotspotModel = [];
+
+    for(let i=0;i<HOTSPOT_COUNT;i++){
+      hotspotModel.push({id:i+1, x: 0.15 + (i*0.15) % 0.7, y: 0.2 + (i*0.12) % 0.6, title: `Info ${i+1}`, desc: `Detail singkat untuk titik info ${i+1}. Jelajahi lebih lanjut untuk melihat konten.`});
+    }
+
+    // create hotspot elements
+    const hotspotEls = {};
+    function createHotspotEl(h){
+      const el = document.createElement('div');
+      el.className = 'hotspot pulse';
+      el.style.zIndex = 55;
+      const pill = document.createElement('div');
+      pill.className = 'pill glass';
+      pill.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(230,245,255,0.9))';
+      pill.style.color = '#04204a';
+      pill.style.padding = '8px 12px';
+      pill.style.fontSize = '14px';
+      pill.textContent = h.id;
+      el.appendChild(pill);
+      el.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        showInfo(h);
+      });
+      hotspotsContainer.appendChild(el);
+      hotspotEls[h.id] = el;
+    }
+    hotspotModel.forEach(createHotspotEl);
+
+    function showInfo(h){
+      infoTitle.textContent = h.title;
+      infoBody.textContent = h.desc;
+      infoCard.classList.remove('hidden');
+    }
+    closeInfo.addEventListener('click', ()=> infoCard.classList.add('hidden'));
+
+    // --- Camera ---
+    async function startCamera(){
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+      }catch(e){
+        alert('Gagal mengakses kamera — pastikan izinkan akses dan gunakan perangkat mobile.');
+        console.error(e);
+      }
+    }
+
+    // --- Device orientation ---
+    function handleOrientation(e){
+      // Prefer absolute (alpha) if available
+      const alpha = (e.absolute && e.alpha !== null) ? e.alpha : e.alpha || 0;
+      const beta = e.beta || 0;
+      const gamma = e.gamma || 0;
+
+      // Convert to compass-like heading: alpha: 0 = north on most devices when absolute true
+      deviceHeading = (360 - alpha) % 360; // keep same convention as earlier app
+      devicePitch = beta; deviceRoll = gamma;
+      statusHeading.textContent = `${Math.round(deviceHeading)}°`;
+    }
+
+    if(window.DeviceOrientationEvent){
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      // also try deviceorientationabsolute for some devices
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    }
+
+    // --- Poster box interactions (drag + pinch to scale) ---
+    let isDragging = false; let dragStart = null; let boxStart = null;
+    let isPinching = false; let pinchStartDist = 0; let boxStartWidth = 0;
+
+    function getTouchDistance(t1,t2){
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+
+    posterBox.addEventListener('touchstart', (ev)=>{
+      ev.preventDefault();
+      if(ev.touches.length === 1){
+        isDragging = true;
+        dragStart = {x: ev.touches[0].clientX, y: ev.touches[0].clientY};
+        const rect = posterBox.getBoundingClientRect();
+        boxStart = {left: rect.left, top: rect.top, width: rect.width, height: rect.height};
+      } else if(ev.touches.length === 2){
+        isPinching = true;
+        pinchStartDist = getTouchDistance(ev.touches[0], ev.touches[1]);
+        boxStartWidth = posterBox.getBoundingClientRect().width;
+      }
+    }, {passive:false});
+
+    posterBox.addEventListener('touchmove', (ev)=>{
+      ev.preventDefault();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      if(isDragging && ev.touches.length===1){
+        const dx = ev.touches[0].clientX - dragStart.x;
+        const dy = ev.touches[0].clientY - dragStart.y;
+        // move keeping center translation
+        posterBox.style.left = `calc(50% + ${dx}px)`;
+        posterBox.style.top = `calc(50% + ${dy}px)`;
+        posterBox.style.transform = 'translate(-50%,-50%)';
+      } else if(isPinching && ev.touches.length===2){
+        const dist = getTouchDistance(ev.touches[0], ev.touches[1]);
+        const scale = dist / pinchStartDist;
+        let newWidth = Math.max(80, Math.min(window.innerWidth * 0.9, boxStartWidth * scale));
+        // maintain 4:5 aspect ratio via CSS aspect-ratio
+        posterBox.style.width = newWidth + 'px';
+      }
+    }, {passive:false});
+
+    posterBox.addEventListener('touchend', (ev)=>{
+      if(ev.touches.length===0){ isDragging=false; isPinching=false; }
+    });
+
+    // Reset
+    btnReset.addEventListener('click', ()=>{
+      posterBox.style.left='50%'; posterBox.style.top='50%'; posterBox.style.width='48vw'; posterBox.style.transform='translate(-50%,-50%)';
+      posterAnchor = null; hideAllHotspots(); infoCard.classList.add('hidden');
+    });
+
+    // --- When user sets poster location ---
+    btnSet.addEventListener('click', ()=>{
+      // compute poster center relative to screen
+      const vb = posterBox.getBoundingClientRect();
+      const centerX = vb.left + vb.width/2;
+      const centerY = vb.top + vb.height/2;
+      const screenW = window.innerWidth, screenH = window.innerHeight;
+
+      // normalized offsets from screen center [-0.5 .. 0.5]
+      const nx = (centerX / screenW) - 0.5; // positive = right
+      const ny = (centerY / screenH) - 0.5; // positive = down
+
+      // Poster angular width/height based on fraction of screen and camera FOV assumption
+      const angularWidth = (vb.width / screenW) * HORIZONTAL_FOV; // degrees
+      const angularHeight = (vb.height / screenH) * VERTICAL_FOV; // degrees
+
+      // posterBearing: deviceHeading + horizontal offset mapped to FOV
+      const bearingOffset = nx * HORIZONTAL_FOV; // degrees offset
+      const verticalOffset = ny * VERTICAL_FOV; // degrees
+
+      posterAnchor = {
+        bearing: (deviceHeading + bearingOffset + 360) % 360,
+        verticalAngle: verticalOffset + devicePitch, // approx
+        angularWidth: angularWidth,
+        angularHeight: angularHeight,
+        distance: 2.0, // assume 2 meters from camera to poster plane; used for scale
+        screenBox: vb // store for reference
+      };
+
+      // show feedback
+      posterBox.style.border='2px solid rgba(124,58,237,0.9)';
+      posterBox.style.boxShadow='0 10px 40px rgba(99,102,241,0.22)';
+      posterBox.querySelector('.poster-label').textContent = 'Poster ter-anchored ✓';
+
+      // Start rendering hotspots as world-anchored
+      requestAnimationFrame(updateFrame);
+    });
+
+    // --- Rendering loop: compute each hotspot world bearing+angle and decide screen position ---
+    function updateFrame(){
+      if(!posterAnchor) return;
+      // For each hotspot, compute its world bearing and vertical angle
+      const screenW = window.innerWidth, screenH = window.innerHeight;
+
+      const posterAngularWidth = posterAnchor.angularWidth;
+      const posterAngularHeight = posterAnchor.angularHeight;
+
+      hotspotModel.forEach(h => {
+        // local offsets relative to poster center, normalized [-0.5..0.5]
+        const localX = (h.x - 0.5);
+        const localY = (h.y - 0.5);
+
+        // hotspot's angular offsets from poster center
+        const hBearingOffset = localX * posterAngularWidth;
+        const hVerticalOffset = localY * posterAngularHeight;
+
+        // hotspot world angles
+        const worldBearing = (posterAnchor.bearing + hBearingOffset + 360) % 360;
+        const worldVertical = posterAnchor.verticalAngle + hVerticalOffset;
+
+        // relative bearing to device heading
+        let relative = (worldBearing - deviceHeading + 540) % 360 - 180; // now in range [-180,180]
+
+        // Only show if within horizontal FOV/2
+        const halfHFOV = HORIZONTAL_FOV/2;
+        const halfVFOV = VERTICAL_FOV/2;
+
+        const el = hotspotEls[h.id];
+
+        if(Math.abs(relative) > halfHFOV || Math.abs(worldVertical - devicePitch) > halfVFOV){
+          // hide offscreen
+          el.style.display='none';
+          return;
         }
 
-        function startARTracking() {
-            const calibrationScreen = document.getElementById('calibration-screen');
-            calibrationScreen.classList.add('hidden');
-            
-            // Calculate poster bounds (center of screen, 4:5 ratio)
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
-            const posterWidth = Math.min(screenWidth * 0.7, 280);
-            const posterHeight = posterWidth * 1.25; // 4:5 ratio
-            
-            posterBounds = {
-                x: (screenWidth - posterWidth) / 2,
-                y: (screenHeight - posterHeight) / 2,
-                width: posterWidth,
-                height: posterHeight
-            };
-            
-            createInfoPoints();
-            isCalibrated = true;
-            
-            // Simulate tracking updates
-            setInterval(updateTracking, 100);
+        el.style.display='flex';
+
+        // map relative horizontal angle to screen X
+        const xPercent = 50 + (relative / halfHFOV) * 50; // 0..100
+        // vertical mapping uses difference in vertical angle
+        const vDiff = (worldVertical - devicePitch);
+        const yPercent = 50 + -(vDiff / halfVFOV) * 45; // invert: looking up decreases y
+
+        // Apply scale based on distance (posterAnchor.distance and small variance)
+        const dist = posterAnchor.distance;
+        const scale = 1 + Math.max(0, (0.8 - Math.min(0.8, Math.abs(relative)/halfHFOV))) * 0.6 - Math.min(0.5, dist/6);
+
+        el.style.left = `${xPercent}%`;
+        el.style.top = `${yPercent}%`;
+        el.style.transform = `translate(-50%,-50%) scale(${scale})`;
+
+        // size & color based on proximity to center
+        const intensity = 1 - (Math.abs(relative)/halfHFOV);
+        const bg = `rgba(${Math.round(255 - intensity*40)}, ${Math.round(255 - intensity*80)}, ${Math.round(255 - intensity*200)}, ${0.98})`;
+        // we set pill background separately
+        const pill = el.querySelector('.pill');
+        pill.style.background = `linear-gradient(180deg, rgba(255,255,255,0.95), rgba(230,245,255,0.9))`;
+
+      });
+
+      requestAnimationFrame(updateFrame);
+    }
+
+    function hideAllHotspots(){
+      Object.values(hotspotEls).forEach(el=> el.style.display='none');
+    }
+
+    // --- Initialize camera & UI ---
+    (async ()=>{
+      await startCamera();
+
+      // On load, hide hotspots until posterAnchor defined
+      hideAllHotspots();
+
+      // Inform user about permissions if necessary
+      if(!('DeviceOrientationEvent' in window)){
+        alert('Perangkat Anda tidak mendukung orientasi perangkat — pengalaman AR akan terbatas.');
+      } else {
+        // Some browsers require a user gesture to enable deviceorientation — try to request permission on iOS 13+
+        if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+          DeviceOrientationEvent.requestPermission().catch(()=>{});
         }
+      }
 
-        function createInfoPoints() {
-            const overlay = document.getElementById('ar-overlay');
-            
-            // Define relative positions on the poster (0-1 coordinates)
-            const positions = [
-                { x: 0.2, y: 0.15, id: 1 },
-                { x: 0.8, y: 0.25, id: 2 },
-                { x: 0.3, y: 0.5, id: 3 },
-                { x: 0.7, y: 0.7, id: 4 },
-                { x: 0.5, y: 0.9, id: 5 }
-            ];
-            
-            positions.forEach(pos => {
-                const point = document.createElement('div');
-                point.className = 'info-point';
-                point.textContent = pos.id;
-                point.style.animationDelay = `${pos.id * 0.2}s`;
-                point.onclick = () => showInfo(pos.id);
-                
-                // Calculate absolute position
-                const absoluteX = posterBounds.x + (pos.x * posterBounds.width) - 20;
-                const absoluteY = posterBounds.y + (pos.y * posterBounds.height) - 20;
-                
-                point.style.left = `${absoluteX}px`;
-                point.style.top = `${absoluteY}px`;
-                
-                overlay.appendChild(point);
-            });
-            
-            drawConnectionLines();
-        }
+      // Friendly touch to focus
+      video.addEventListener('touchstart', (e)=>{ e.preventDefault(); }, {passive:false});
 
-        function drawConnectionLines() {
-            const svg = document.getElementById('connection-lines');
-            const points = document.querySelectorAll('.info-point');
-            
-            // Create subtle connection lines between points
-            for (let i = 0; i < points.length - 1; i++) {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const point1 = points[i];
-                const point2 = points[i + 1];
-                
-                const x1 = parseInt(point1.style.left) + 20;
-                const y1 = parseInt(point1.style.top) + 20;
-                const x2 = parseInt(point2.style.left) + 20;
-                const y2 = parseInt(point2.style.top) + 20;
-                
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2);
-                line.setAttribute('y2', y2);
-                line.setAttribute('stroke', 'rgba(0, 255, 255, 0.3)');
-                line.setAttribute('stroke-width', '1');
-                line.setAttribute('stroke-dasharray', '5,5');
-                
-                svg.appendChild(line);
-            }
-        }
+    })();
 
-        function updateTracking() {
-            if (!isCalibrated) return;
-            
-            // Simulate slight movement for realism
-            const points = document.querySelectorAll('.info-point');
-            points.forEach((point, index) => {
-                const time = Date.now() * 0.001;
-                const offsetX = Math.sin(time + index) * 2;
-                const offsetY = Math.cos(time + index * 0.7) * 1;
-                
-                const currentLeft = parseInt(point.style.left);
-                const currentTop = parseInt(point.style.top);
-                
-                point.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-            });
-            
-            // Update tracking status
-            const statuses = ['STABIL', 'OPTIMAL', 'TRACKING'];
-            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-            document.getElementById('tracking-status').textContent = `TRACKING: ${randomStatus}`;
-        }
+    // Accessibility: prevent desktop use
+    if(window.innerWidth > 900){
+      // hide UI and show message
+      document.body.innerHTML = `<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#9fb7ff;padding:20px;text-align:center">Aplikasi ini dioptimalkan untuk perangkat mobile. Silakan buka di ponsel untuk pengalaman AR.</div>`;
+    }
 
-        function showInfo(pointId) {
-            // Remove active class from all points
-            document.querySelectorAll('.info-point').forEach(p => p.classList.remove('active'));
-            
-            // Add active class to clicked point
-            const clickedPoint = [...document.querySelectorAll('.info-point')].find(p => p.textContent == pointId);
-            clickedPoint.classList.add('active');
-            
-            // Show info panel
-            const panel = document.getElementById('info-panel');
-            const title = document.getElementById('info-title');
-            const content = document.getElementById('info-content');
-            
-            title.textContent = infoData[pointId].title;
-            content.textContent = infoData[pointId].content;
-            
-            panel.classList.add('show');
-            activePoint = pointId;
-        }
-
-        function closeInfoPanel() {
-            document.getElementById('info-panel').classList.remove('show');
-            document.querySelectorAll('.info-point').forEach(p => p.classList.remove('active'));
-            activePoint = null;
-        }
-
-        // Initialize on load
-        window.addEventListener('load', () => {
-            initCamera();
-        });
-
-        // Handle orientation changes
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                if (isCalibrated) {
-                    // Recalculate positions after orientation change
-                    document.getElementById('ar-overlay').innerHTML = '';
-                    document.getElementById('connection-lines').innerHTML = '';
-                    
-                    const screenWidth = window.innerWidth;
-                    const screenHeight = window.innerHeight;
-                    const posterWidth = Math.min(screenWidth * 0.7, 280);
-                    const posterHeight = posterWidth * 1.25;
-                    
-                    posterBounds = {
-                        x: (screenWidth - posterWidth) / 2,
-                        y: (screenHeight - posterHeight) / 2,
-                        width: posterWidth,
-                        height: posterHeight
-                    };
-                    
-                    createInfoPoints();
-                }
-            }, 500);
-        });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9710ed36b6b991a2',t:'MTc1NTUxNTAyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  </script>
+</body>
 </html>
