@@ -2,18 +2,113 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Bullet Numbers - Poster 4:5</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Bullet Numbers - Mobile Optimized</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        body {
+        * {
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #000;
             overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
-        
+
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            padding: 20px 20px 40px 20px;
+            color: white;
+            text-align: center;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active {
+            background: #44ff44;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .bottom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            padding: 40px 20px 20px 20px;
+            text-align: center;
+        }
+
+        .instruction-text {
+            color: white;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .tap-hint {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            border: 2px solid rgba(255,255,255,0.3);
+            font-size: 14px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            animation: glow 2s ease-in-out infinite alternate;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+            to { box-shadow: 0 0 20px rgba(255,255,255,0.6); }
+        }
+
         .loading-screen {
             position: fixed;
             top: 0;
@@ -27,220 +122,342 @@
             align-items: center;
             z-index: 1000;
             color: white;
-            transition: opacity 0.5s ease;
+            transition: all 0.5s ease;
         }
-        
+
         .loading-spinner {
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             border: 4px solid rgba(255,255,255,0.3);
             border-top: 4px solid white;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        .instructions {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-        
-        .status {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            z-index: 100;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-        
+
         .hidden {
             opacity: 0;
             pointer-events: none;
         }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .instruction-text {
+                font-size: 14px;
+            }
+            
+            .tap-hint {
+                font-size: 12px;
+                padding: 10px 20px;
+            }
+            
+            .top-bar {
+                padding: 15px 15px 30px 15px;
+            }
+            
+            .bottom-controls {
+                padding: 30px 15px 15px 15px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Loading Screen -->
     <div class="loading-screen" id="loadingScreen">
         <div class="loading-spinner"></div>
-        <h2>Memuat AR Experience...</h2>
-        <p>Mohon tunggu sebentar</p>
-    </div>
-    
-    <div class="instructions">
-        <strong>📱 Cara Menggunakan AR:</strong><br>
-        1. Arahkan kamera ke poster Anda<br>
-        2. Pastikan poster terlihat jelas dan tidak terpotong<br>
-        3. Bullet numbers 1-5 akan muncul secara AR!
-    </div>
-    
-    <div class="status" id="status">
-        Mencari poster... Pastikan poster terlihat jelas di kamera
+        <h2 style="margin-bottom: 10px;">Memuat AR Camera...</h2>
+        <p>Siapkan poster rasio 4:5 Anda</p>
     </div>
 
+    <!-- UI Overlay -->
+    <div class="ui-overlay">
+        <div class="top-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Mencari poster...</span>
+            </div>
+        </div>
+
+        <div class="bottom-controls">
+            <div class="instruction-text" id="instructionText">
+                Arahkan kamera ke poster Anda dan ketuk layar
+            </div>
+            <div class="tap-hint" id="tapHint" onclick="placeBullets()">
+                📱 KETUK UNTUK MUNCULKAN BULLETS
+            </div>
+        </div>
+    </div>
+
+    <!-- AR Scene -->
     <a-scene
+        mindar-image="imageTargetSrc: https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind; maxTrack: 1; showStats: false; uiScanning: #scanning; uiLoading: #loading; uiError: #error"
+        color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights"
         vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-        renderer="logarithmicDepthBuffer: true; precision: medium;"
-        embedded
-        gesture-detector
-        id="scene">
-        
-        <!-- Assets -->
+        device-orientation-permission-ui="enabled: false"
+        id="arScene">
+
         <a-assets>
-            <!-- Bullet number materials -->
-            <a-mixin id="bullet-text" 
-                     text="font: roboto; align: center; width: 2000; color: #FF6B6B; shader: msdf"
-                     material="transparent: true; alphaTest: 0.1"
-                     animation__appear="property: scale; from: 0 0 0; to: 1.2 1.2 1.2; dur: 800; easing: easeOutBack"
-                     animation__float="property: position; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine">
+            <!-- Bullet styles -->
+            <a-mixin id="bullet-number"
+                text="font: roboto; align: center; width: 1000; color: #FFFFFF; shader: msdf"
+                material="transparent: true"
+                animation__appear="property: scale; from: 0 0 0; to: 1 1 1; dur: 600; easing: easeOutBack"
+                animation__float="property: position; dir: alternate; dur: 3000; loop: true; easing: easeInOutSine">
             </a-mixin>
-            
-            <a-mixin id="bullet-bg"
-                     geometry="primitive: circle; radius: 0.8"
-                     material="color: #4ECDC4; transparent: true; opacity: 0.9"
-                     animation__pulse="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine">
+
+            <a-mixin id="bullet-circle"
+                geometry="primitive: circle; radius: 0.4"
+                material="transparent: true; opacity: 0.9"
+                animation__scale="property: scale; from: 0.8 0.8 0.8; to: 1.1 1.1 1.1; dir: alternate; dur: 2000; loop: true">
             </a-mixin>
         </a-assets>
 
-        <!-- AR Marker -->
-        <a-marker
-            type="pattern"
-            url="https://xppfmghrhhrejnopnyir.supabase.co/storage/v1/object/public/ewan/targets.mind"
-            id="marker"
-            registerevents>
-            
-            <!-- Bullet Number 1 -->
-            <a-entity position="-3 2 0">
-                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
-                <a-text mixin="bullet-text" 
-                        value="1" 
-                        position="0 0 0"
-                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 0">
-                </a-text>
-            </a-entity>
-            
-            <!-- Bullet Number 2 -->
-            <a-entity position="-1.5 1 0">
-                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
-                <a-text mixin="bullet-text" 
-                        value="2" 
-                        position="0 0 0"
-                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 400">
-                </a-text>
-            </a-entity>
-            
-            <!-- Bullet Number 3 -->
-            <a-entity position="0 0 0">
-                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
-                <a-text mixin="bullet-text" 
-                        value="3" 
-                        position="0 0 0"
-                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 800">
-                </a-text>
-            </a-entity>
-            
-            <!-- Bullet Number 4 -->
-            <a-entity position="1.5 1 0">
-                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
-                <a-text mixin="bullet-text" 
-                        value="4" 
-                        position="0 0 0"
-                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 1200">
-                </a-text>
-            </a-entity>
-            
-            <!-- Bullet Number 5 -->
-            <a-entity position="3 2 0">
-                <a-entity mixin="bullet-bg" position="0 0 -0.1"></a-entity>
-                <a-text mixin="bullet-text" 
-                        value="5" 
-                        position="0 0 0"
-                        animation__float="property: position; from: 0 0 0; to: 0 0.2 0; dir: alternate; dur: 2000; loop: true; delay: 1600">
-                </a-text>
-            </a-entity>
-            
-            <!-- Decorative particles -->
-            <a-entity position="0 3 0">
-                <a-text value="✨ AR BULLETS ✨" 
-                        align="center" 
-                        color="#FFD93D" 
-                        scale="0.8 0.8 0.8"
-                        animation__glow="property: material.color; from: #FFD93D; to: #FF6B6B; dir: alternate; dur: 1000; loop: true">
-                </a-text>
-            </a-entity>
-        </a-marker>
+        <!-- Image Target -->
+        <a-entity mindar-image-target="targetIndex: 0" id="imageTarget">
+            <!-- Bullet containers (initially hidden) -->
+            <a-entity id="bulletsContainer" visible="false">
+                <!-- Bullet 1 -->
+                <a-entity position="-1.5 1 0" id="bullet1">
+                    <a-entity mixin="bullet-circle" 
+                              material="color: #FF6B6B" 
+                              position="0 0 -0.05">
+                    </a-entity>
+                    <a-text mixin="bullet-number" 
+                            value="1" 
+                            position="0 0 0"
+                            animation__float="property: position; from: 0 0 0; to: 0 0.1 0; dir: alternate; dur: 3000; loop: true; delay: 0">
+                    </a-text>
+                </a-entity>
 
-        <!-- Camera -->
-        <a-entity camera look-controls-enabled="false" arjs-look-controls="smoothingFactor: 0.1"></a-entity>
+                <!-- Bullet 2 -->
+                <a-entity position="-0.75 0.5 0" id="bullet2">
+                    <a-entity mixin="bullet-circle" 
+                              material="color: #4ECDC4" 
+                              position="0 0 -0.05">
+                    </a-entity>
+                    <a-text mixin="bullet-number" 
+                            value="2" 
+                            position="0 0 0"
+                            animation__float="property: position; from: 0 0 0; to: 0 0.1 0; dir: alternate; dur: 3000; loop: true; delay: 300">
+                    </a-text>
+                </a-entity>
+
+                <!-- Bullet 3 -->
+                <a-entity position="0 0 0" id="bullet3">
+                    <a-entity mixin="bullet-circle" 
+                              material="color: #45B7D1" 
+                              position="0 0 -0.05">
+                    </a-entity>
+                    <a-text mixin="bullet-number" 
+                            value="3" 
+                            position="0 0 0"
+                            animation__float="property: position; from: 0 0 0; to: 0 0.1 0; dir: alternate; dur: 3000; loop: true; delay: 600">
+                    </a-text>
+                </a-entity>
+
+                <!-- Bullet 4 -->
+                <a-entity position="0.75 0.5 0" id="bullet4">
+                    <a-entity mixin="bullet-circle" 
+                              material="color: #96CEB4" 
+                              position="0 0 -0.05">
+                    </a-entity>
+                    <a-text mixin="bullet-number" 
+                            value="4" 
+                            position="0 0 0"
+                            animation__float="property: position; from: 0 0 0; to: 0 0.1 0; dir: alternate; dur: 3000; loop: true; delay: 900">
+                    </a-text>
+                </a-entity>
+
+                <!-- Bullet 5 -->
+                <a-entity position="1.5 1 0" id="bullet5">
+                    <a-entity mixin="bullet-circle" 
+                              material="color: #FFEAA7" 
+                              position="0 0 -0.05">
+                    </a-entity>
+                    <a-text mixin="bullet-number" 
+                            value="5" 
+                            position="0 0 0"
+                            animation__float="property: position; from: 0 0 0; to: 0 0.1 0; dir: alternate; dur: 3000; loop: true; delay: 1200">
+                    </a-text>
+                </a-entity>
+
+                <!-- Title -->
+                <a-text value="AR BULLETS" 
+                        align="center" 
+                        color="#FFD700" 
+                        position="0 1.8 0"
+                        scale="0.6 0.6 0.6"
+                        animation__glow="property: material.color; from: #FFD700; to: #FF6B6B; dir: alternate; dur: 2000; loop: true">
+                </a-text>
+            </a-entity>
+        </a-entity>
+
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
     </a-scene>
 
     <script>
-        // Loading screen management
-        window.addEventListener('load', function() {
+        let arReady = false;
+        let targetFound = false;
+        let bulletsVisible = false;
+
+        // DOM elements
+        const loadingScreen = document.getElementById('loadingScreen');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const instructionText = document.getElementById('instructionText');
+        const tapHint = document.getElementById('tapHint');
+        const bulletsContainer = document.getElementById('bulletsContainer');
+        const imageTarget = document.getElementById('imageTarget');
+
+        // Initialize AR
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide loading screen after delay
             setTimeout(() => {
-                document.getElementById('loadingScreen').classList.add('hidden');
-            }, 2000);
-        });
+                loadingScreen.classList.add('hidden');
+                arReady = true;
+                updateStatus('ready', 'Siap! Arahkan ke poster...');
+            }, 3000);
 
-        // AR marker detection
-        const marker = document.querySelector('#marker');
-        const status = document.getElementById('status');
-        
-        marker.addEventListener('markerFound', function() {
-            status.innerHTML = '🎯 Poster terdeteksi! Bullet numbers sedang muncul...';
-            status.style.background = 'rgba(76, 175, 80, 0.8)';
-            
-            // Add sound effect simulation
-            console.log('AR Marker Found - Bullets Appearing!');
-        });
-        
-        marker.addEventListener('markerLost', function() {
-            status.innerHTML = 'Mencari poster... Arahkan kamera ke poster Anda';
-            status.style.background = 'rgba(0,0,0,0.8)';
-        });
-
-        // Handle camera permissions
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-                console.log('Camera access granted');
-            })
-            .catch(function(err) {
-                status.innerHTML = '❌ Izin kamera diperlukan untuk AR. Silakan refresh dan izinkan akses kamera.';
-                status.style.background = 'rgba(244, 67, 54, 0.8)';
+            // Target tracking events
+            imageTarget.addEventListener('targetFound', function() {
+                targetFound = true;
+                statusDot.classList.add('active');
+                updateStatus('found', 'Poster terdeteksi! 🎯');
+                instructionText.textContent = 'Poster ditemukan! Ketuk untuk munculkan bullets';
+                tapHint.style.animation = 'glow 1s ease-in-out infinite alternate';
             });
 
-        // Performance optimization
-        document.addEventListener('DOMContentLoaded', function() {
-            const scene = document.querySelector('a-scene');
-            if (scene.hasLoaded) {
-                console.log('AR Scene loaded successfully');
-            } else {
-                scene.addEventListener('loaded', function() {
-                    console.log('AR Scene loaded successfully');
-                });
+            imageTarget.addEventListener('targetLost', function() {
+                targetFound = false;
+                statusDot.classList.remove('active');
+                updateStatus('searching', 'Mencari poster...');
+                instructionText.textContent = 'Arahkan kamera ke poster Anda';
+                if (bulletsVisible) {
+                    hideBullets();
+                }
+            });
+        });
+
+        function updateStatus(state, message) {
+            statusText.textContent = message;
+            
+            switch(state) {
+                case 'ready':
+                    statusDot.style.background = '#ffaa00';
+                    break;
+                case 'found':
+                    statusDot.style.background = '#44ff44';
+                    break;
+                case 'searching':
+                    statusDot.style.background = '#ff4444';
+                    break;
             }
+        }
+
+        function placeBullets() {
+            if (!targetFound) {
+                // Vibrate if available
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+                
+                instructionText.textContent = 'Arahkan kamera ke poster terlebih dahulu!';
+                instructionText.style.color = '#ff6b6b';
+                
+                setTimeout(() => {
+                    instructionText.style.color = 'white';
+                    instructionText.textContent = 'Arahkan kamera ke poster Anda';
+                }, 2000);
+                
+                return;
+            }
+
+            if (bulletsVisible) {
+                hideBullets();
+            } else {
+                showBullets();
+            }
+        }
+
+        function showBullets() {
+            bulletsContainer.setAttribute('visible', 'true');
+            bulletsVisible = true;
+            
+            // Animate bullets appearing one by one
+            const bullets = ['bullet1', 'bullet2', 'bullet3', 'bullet4', 'bullet5'];
+            bullets.forEach((bulletId, index) => {
+                setTimeout(() => {
+                    const bullet = document.getElementById(bulletId);
+                    bullet.setAttribute('animation__appear', {
+                        property: 'scale',
+                        from: '0 0 0',
+                        to: '1 1 1',
+                        dur: 500,
+                        easing: 'easeOutBack'
+                    });
+                }, index * 200);
+            });
+
+            tapHint.textContent = '🔄 KETUK UNTUK SEMBUNYIKAN';
+            instructionText.textContent = 'Bullets muncul! Ketuk lagi untuk sembunyikan';
+            
+            // Haptic feedback
+            if (navigator.vibrate) {
+                navigator.vibrate([50, 50, 50]);
+            }
+        }
+
+        function hideBullets() {
+            const bullets = ['bullet5', 'bullet4', 'bullet3', 'bullet2', 'bullet1'];
+            bullets.forEach((bulletId, index) => {
+                setTimeout(() => {
+                    const bullet = document.getElementById(bulletId);
+                    bullet.setAttribute('animation__disappear', {
+                        property: 'scale',
+                        from: '1 1 1',
+                        to: '0 0 0',
+                        dur: 300,
+                        easing: 'easeInBack'
+                    });
+                }, index * 100);
+            });
+
+            setTimeout(() => {
+                bulletsContainer.setAttribute('visible', 'false');
+                bulletsVisible = false;
+            }, 800);
+
+            tapHint.textContent = '📱 KETUK UNTUK MUNCULKAN BULLETS';
+            instructionText.textContent = 'Ketuk untuk munculkan bullets lagi';
+        }
+
+        // Touch events for mobile
+        document.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+        });
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Handle orientation changes
+        window.addEventListener('orientationchange', function() {
+            setTimeout(() => {
+                location.reload();
+            }, 500);
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711c505d2aaf9e6',t:'MTc1NTUyMzg2Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9711cd8452de468b',t:'MTc1NTUyNDIxNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
