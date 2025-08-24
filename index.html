@@ -991,20 +991,22 @@
                         // Validate data
                         if (name && !isNaN(lat) && !isNaN(lon) && url) {
                             // Determine content type based on URL
-                            let contentType = 'link'; // default
-                            let processedContent = url;
-                            
-                            if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                                contentType = 'video';
-                                processedContent = extractYouTubeID(url);
-                            } else if (url.toLowerCase().includes('.glb') || url.toLowerCase().includes('.gltf')) {
-                                contentType = '3d';
-                            } else if (url.includes(',')) {
-                                // Multiple URLs - treat as presentation
-                                contentType = 'presentation';
-                                const slides = url.split(',').map(u => u.trim()).filter(u => u);
-                                processedContent = JSON.stringify(slides);
-                            }
+let contentType = 'link'; // default ke link, jadi tampil di iframe
+let processedContent = url;
+
+if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    contentType = 'video';
+    processedContent = extractYouTubeID(url);
+} else if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf')) {
+    contentType = '3d';
+} else if (url.includes(',')) {
+    contentType = 'presentation';
+    const slides = url.split(',').map(u => u.trim()).filter(u => u);
+    processedContent = JSON.stringify(slides);
+} else if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    contentType = 'image';
+}
+
                             
                             const arContent = {
                                 id: `csv_${i}_${Date.now()}`,
